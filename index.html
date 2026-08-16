@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <meta name="theme-color" content="#0d0f13">
 <title>Diagnóstico Mestre — Banco de Causas</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📑</text></svg>">
 <style>
     :root {
       --bg: #0d0f13;
@@ -42,7 +41,6 @@
     }
     #app { max-width: 1080px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
 
-    /* Header - visual de "ordem de serviço" estampada */
     header.topbar {
       position: sticky; top: 0; z-index: 20;
       display: flex; align-items: center; justify-content: space-between; gap:10px;
@@ -63,7 +61,6 @@
     #statsMini { font-family: var(--mono); font-size:11.5px; color: var(--text-dim); text-align:right; line-height:1.5; flex:0 0 auto; }
     #statsMini b { color: var(--accent); font-weight:700; }
 
-    /* Tabs */
     nav.tabs {
       position: sticky; top: 71px; z-index: 19;
       display: flex; gap: 4px;
@@ -75,11 +72,13 @@
     }
     nav.tabs::-webkit-scrollbar{ display:none; }
     .tab-btn {
-      flex: 0 0 auto; display:flex; align-items:center; gap:6px;
+      flex: 0 0 auto;
+      display:flex; align-items:center; gap:6px;
       background: transparent; border: none; color: var(--text-dim);
       padding: 9px 14px; border-radius: 10px; cursor:pointer;
       font-size: 13px; font-weight:700; white-space:nowrap; letter-spacing:.2px;
-      transition: background .15s, color .15s; font-family: var(--font);
+      transition: background .15s, color .15s;
+      font-family: var(--font);
     }
     .tab-btn:hover { background: var(--card-hover); color: var(--text); }
     .tab-btn.active { background: var(--accent-soft); color: var(--accent); }
@@ -90,8 +89,7 @@
     .tab-panel.active { display:block; }
     @keyframes fadeIn { from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;} }
 
-    /* Search */
-    .search-bar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
+    .search-bar {display: flex;gap: 8px;flex-wrap: nowrap;margin-bottom: 10px;align-items: stretch;}
     #searchInput {
       flex:1 1 260px; padding:14px 16px; border-radius: var(--radius-sm);
       border:1px solid var(--border); background:var(--panel); color:var(--text);
@@ -100,7 +98,7 @@
     #searchInput:focus { border-color: var(--accent); }
     #filterCategoria {
       padding:13px 12px; border-radius: var(--radius-sm); border:1px solid var(--border);
-      background:var(--panel); color:var(--text-dim); font-size:13.5px; max-width:210px; font-family:var(--mono);
+      background:var(--panel); color:var(--text-dim); font-size:13.5px; max-width:85px; font-family:var(--mono);
     }
     button { cursor:pointer; font-family: var(--font); }
     #btnBuscar {
@@ -108,10 +106,16 @@
       background: var(--accent); color:#1a0e02; font-weight:800; font-size:14.5px; letter-spacing:.3px;
     }
     #btnBuscar:active { transform: scale(.98); }
-    .search-meta { font-size:12.5px; color:var(--text-dim); margin: 12px 2px 4px; font-family:var(--mono); }
-    .search-hint { font-size:12.5px; color:var(--text-faint); margin: 4px 2px 18px; line-height:1.5; }
 
-    /* Result cards */
+    #toggleInfo { padding:7px 13px; font-size:11.5px; margin-bottom:4px; }
+    #infoBayes {
+      display:none; font-size:12.5px; color:var(--text-dim); line-height:1.65;
+      background: var(--bg-alt); border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin:8px 0 16px;
+    }
+    #infoBayes b { color: var(--accent); }
+
+    .search-meta { font-size:12.5px; color:var(--text-dim); margin: 6px 2px 4px; font-family:var(--mono); }
+
     .results-list { display:flex; flex-direction:column; gap:12px; }
     .result-card {
       background:var(--card); border:1px solid var(--border); border-radius: var(--radius);
@@ -131,10 +135,9 @@
     .result-header h4 { margin:0; font-size:15.5px; line-height:1.4; font-weight:700; }
     .badge {
       flex:0 0 auto; font-family:var(--mono); font-size:10.5px; font-weight:700; color: var(--accent-2);
-      background: var(--accent-2-soft); padding:4px 9px; border-radius:5px; white-space:nowrap; letter-spacing:.3px; text-transform:uppercase;
+      background: var(--accent-2-soft); padding:4px 9px; border-radius:5px; white-space:nowrap; letter-spacing:.3px;
+      text-transform:uppercase;
     }
-    .badge-success { background: var(--success-soft); color: var(--success); border: 1px solid var(--success); }
-    
     .prob-bar {
       position:relative; height:22px; border-radius:6px; margin:10px 0 8px;
       background: repeating-linear-gradient(90deg, var(--bg-alt) 0, var(--bg-alt) 9%, #1f2530 9%, #1f2530 10%);
@@ -144,28 +147,55 @@
     .prob-fill::after { content:''; position:absolute; right:0; top:0; bottom:0; width:2px; background:#fff; box-shadow:0 0 8px 1px #fff; }
     .prob-label {
       position:absolute; inset:0; display:flex; align-items:center; padding-left:10px;
-      font-size:10.5px; font-weight:800; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,.6); font-family:var(--mono); letter-spacing:.2px;
+      font-size:10.5px; font-weight:800; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,.6); font-family:var(--mono);
+      letter-spacing:.2px;
     }
     .snippet { margin:6px 0 0; font-size:13.5px; color:var(--text-dim); line-height:1.55; }
     .snippet mark, .modal-causas mark { background: var(--accent); color:#1a0e02; padding:0 2px; border-radius:3px; font-weight:700; }
+    .conf-badge {
+      display:inline-block; margin-top:8px; font-size:11px; font-weight:700; color:var(--success);
+      background:var(--success-soft); padding:3px 9px; border-radius:20px; font-family:var(--mono);
+    }
     .result-actions { flex:0 0 auto; display:flex; flex-direction:column; gap:6px; justify-content:center; }
-    .btn-ver, .btn-descartar {
+    .btn-ver, .btn-descartar, .btn-confirmar {
       padding:9px 13px; border-radius:8px; border:1px solid var(--border); background:var(--bg-alt);
       color:var(--text); font-size:12px; font-weight:700; white-space:nowrap;
     }
     .btn-ver:hover { border-color: var(--accent-2); color: var(--accent-2); }
     .btn-descartar:hover { border-color: var(--danger); color: var(--danger); }
+    .btn-confirmar { color: var(--success); }
+    .btn-confirmar:hover { border-color: var(--success); }
+
+    .dif-box { margin-top:10px; display:flex; flex-direction:column; gap:6px; }
+    .dif-item { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; background:var(--bg-alt); border:1px solid var(--border); border-radius:8px; padding:8px 10px; }
+    .dif-pergunta { font-size:12px; color:var(--text-dim); flex:1 1 150px; }
+    .dif-botoes { display:flex; gap:4px; flex:0 0 auto; }
+    .dif-btn { padding:5px 12px; border-radius:6px; border:1px solid var(--border); background:transparent; color:var(--text-dim); font-size:11.5px; font-weight:700; }
+    .dif-btn.ativo-sim { background:var(--success-soft); border-color:var(--success); color:var(--success); }
+    .dif-btn.ativo-nao { background:var(--danger-soft); border-color:var(--danger); color:var(--danger); }
+
+    .dif-edit-row { display:flex; gap:6px; align-items:center; margin-bottom:8px; flex-wrap:wrap; }
+    .dif-edit-row input[type=text] { flex:1 1 200px; }
+    .dif-edit-row select { flex:0 0 auto; width:auto; padding:10px; font-size:12.5px; }
+    .dif-remove-btn { flex:0 0 auto; width:36px; height:36px; border-radius:8px; border:1px solid var(--border); background:var(--bg-alt); }
+
+    .perguntas-box {display:flex; flex-wrap:wrap; gap:8px; align-items:center; width:100%; }
+    .perguntas-label { font-size:12px; color:var(--text-dim); font-weight:700; width:100%; margin-bottom:2px; }
+    .chip-pergunta {
+      padding:7px 13px; border-radius:20px; border:1px dashed var(--accent-2); background:var(--accent-2-soft);
+      color:var(--accent-2); font-size:12.5px; font-weight:700; font-family:var(--mono);
+    }
+    .chip-pergunta:hover { background:var(--accent-2); color:#04131f; }
 
     .empty { color: var(--text-faint); font-size:13.5px; padding:36px 14px; text-align:center; line-height:1.6; }
 
-    /* Cards / forms genéricos */
-    .card { background:var(--card); border:1px solid var(--border); border-radius: var(--radius); padding:18px; margin-bottom:16px; }
-    .card.destaque { border-color: var(--accent-2); background: linear-gradient(180deg, rgba(79,168,224,0.05) 0%, var(--card) 100%); }
+    .card {
+      background:var(--card); border:1px solid var(--border); border-radius: var(--radius);
+      padding:18px; margin-bottom:16px;
+    }
     .card h3 { margin:0 0 4px; font-size:14.5px; font-weight:800; text-transform:uppercase; letter-spacing:.4px; }
     .card .hint { font-size:12.5px; color:var(--text-dim); margin:0 0 12px; line-height:1.6; }
     .card .hint code { background: var(--bg-alt); padding:1px 6px; border-radius:4px; font-size:11.5px; font-family:var(--mono); color:var(--accent); }
-    .add-grid { display:grid; grid-template-columns: 1fr 1fr; gap:16px; align-items:start; }
-    @media (max-width: 860px){ .add-grid { grid-template-columns: 1fr; } }
 
     label { display:block; font-size:11.5px; font-weight:700; color:var(--text-dim); margin: 13px 0 6px; text-transform:uppercase; letter-spacing:.3px; }
     label:first-of-type { margin-top:0; }
@@ -175,23 +205,25 @@
     }
     input:focus, textarea:focus, select:focus { border-color: var(--accent); }
     textarea { resize: vertical; min-height:90px; line-height:1.55; }
-    #fCausas { min-height:170px; }
-    #bulkText { min-height:230px; font-family: var(--mono); font-size:12.5px; }
+    #quickText { min-height:230px; font-family: var(--mono); font-size:12.5px; }
+    #eCausas { font-family: var(--font); }
 
-    .form-actions { display:flex; gap:8px; margin-top:16px; }
-    .btn-primary { padding:12px 18px; border-radius: var(--radius-sm); border:none; background: var(--accent); color:#1a0e02; font-weight:800; font-size:13.5px; }
-    .btn-secondary { padding:11px 16px; border-radius: var(--radius-sm); border:1px solid var(--border); background:transparent; color:var(--text-dim); font-weight:700; font-size:13px; }
+    .form-actions { display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; }
+    .btn-primary {
+      padding:12px 18px; border-radius: var(--radius-sm); border:none;
+      background: var(--accent); color:#1a0e02; font-weight:800; font-size:13.5px;
+    }
+    .btn-secondary {
+      padding:11px 16px; border-radius: var(--radius-sm); border:1px solid var(--border);
+      background:transparent; color:var(--text-dim); font-weight:700; font-size:13px;
+    }
     .btn-secondary:hover { color:var(--text); border-color:#3a4256; }
-    .btn-success { background: var(--success); color:#000; padding:12px; border-radius:10px; border:none; font-weight:800; font-size:14px; width: 100%; margin-top: 10px;}
 
-    .bulk-actions { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
-    #bulkCategoriaPadrao { flex:1 1 180px; }
-    #bulkPreview { margin-top:14px; display:flex; flex-direction:column; gap:8px; max-height:340px; overflow-y:auto; }
+    #quickPreview { margin-top:14px; display:flex; flex-direction:column; gap:8px; max-height:340px; overflow-y:auto; }
     .preview-item { background: var(--bg-alt); border:1px solid var(--border); border-radius:9px; padding:10px 12px; font-size:13px; }
     .preview-item b { color: var(--accent); }
     .preview-item .pi-meta { color:var(--text-faint); font-size:11.5px; margin-top:3px; font-family:var(--mono); }
 
-    /* Gerenciar */
     .manage-toolbar { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; align-items:center; }
     .manage-toolbar input { flex:1 1 200px; }
     .manage-toolbar select { flex:0 0 auto; max-width:190px; font-family:var(--mono); font-size:12.5px; }
@@ -203,19 +235,23 @@
     }
     .manage-item-info { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:13.5px; }
     .manage-date { color:var(--text-faint); font-size:11px; font-family:var(--mono); }
+    .dif-count-badge { font-family:var(--mono); font-size:10.5px; font-weight:700; color:var(--accent-2); background:var(--accent-2-soft); padding:3px 8px; border-radius:20px; }
     .manage-item-actions { display:flex; gap:4px; }
     .manage-item-actions button {
-      width:33px; height:33px; border-radius:8px; border:1px solid var(--border); background:var(--bg-alt); font-size:14px;
+      width:33px; height:33px; border-radius:8px; border:1px solid var(--border); background:var(--bg-alt);
+      font-size:14px;
     }
     .manage-item-actions button:hover { border-color: var(--accent); }
 
-    /* Dados */
     .card.danger { border-color: var(--danger-soft); }
     .card.danger h3 { color: var(--danger); }
     #importResult { margin-top:10px; font-size:13px; color: var(--success); }
     input[type=file] { color:var(--text-dim); font-size:13px; }
 
-    /* Modal */
+    .sin-group { border:1px solid var(--border); border-radius:10px; padding:10px; margin-bottom:10px; background:var(--bg-alt); }
+    .sin-textarea { min-height:90px; font-family:var(--mono); font-size:12.5px; margin-bottom:8px; }
+    .sin-remove-btn { padding:8px 12px; border-radius:8px; border:1px solid var(--border); background:transparent; color:var(--danger); font-size:12px; font-weight:700; }
+
     .modal-overlay {
       position: fixed; inset:0; background: rgba(5,6,9,.75); backdrop-filter: blur(3px);
       display:flex; align-items:flex-end; justify-content:center; z-index:100;
@@ -242,11 +278,10 @@
     .tag { font-family:var(--mono); font-size:10.5px; background: var(--bg-alt); border:1px solid var(--border); color:var(--text-dim); padding:3px 9px; border-radius:5px; }
     .modal-date { font-family:var(--mono); font-size:11px; color:var(--text-faint); margin-bottom:16px; }
     .modal-causas { white-space:pre-wrap; font-size:14px; line-height:1.7; color:var(--text); border-top:1px solid var(--border); padding-top:16px; }
-    .modal-actions { display:flex; gap:8px; margin-top:22px; }
-    .modal-actions button { flex:1; padding:12px; border-radius:10px; border:1px solid var(--border); background:var(--bg-alt); color:var(--text); font-weight:700; font-size:13px; }
+    .modal-actions { display:flex; gap:8px; margin-top:22px; flex-wrap:wrap; }
+    .modal-actions button { flex:1 1 30%; padding:12px; border-radius:10px; border:1px solid var(--border); background:var(--bg-alt); color:var(--text); font-weight:700; font-size:13px; }
     .modal-actions button.danger { color: var(--danger); border-color: var(--danger-soft); }
 
-    /* Toast */
     .toast {
       position: fixed; bottom: 24px; left:50%; transform: translateX(-50%) translateY(20px);
       background:#1c212b; border:1px solid var(--border); color:var(--text); padding:12px 20px;
@@ -257,12 +292,11 @@
     .toast.erro { border-color: var(--danger); color: var(--danger); }
     .toast.ok { border-color: var(--success); }
 
-    /* Mobile bottom nav */
     @media (max-width: 640px){
       header.topbar { padding:12px 14px; }
       .brand-text h1 { font-size:14px; }
       nav.tabs {
-        position: fixed; bottom:0; left:0; right:0; top:auto;
+        position: fixed; bottom:0; left:0; right:0; top:auto;flex-wrap: wrap;
         justify-content: space-around; padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
         background: var(--panel); border-top:1px solid var(--border); border-bottom:none;
       }
@@ -270,9 +304,73 @@
       .tab-icon { font-size:18px; }
       main { padding:14px 14px 100px; }
       .result-card { flex-direction:column; }
-      .result-actions { flex-direction:row; }
-      .btn-ver, .btn-descartar { flex:1; }
+      .result-actions { flex-direction:row; flex-wrap:wrap; }
+      .btn-ver, .btn-descartar, .btn-confirmar { flex:1 1 28%; }
     }
+    /* destaca de vermelhor um sintoma capital */
+    .capital-badge {
+      display:inline-block; margin-top:8px; font-size:11px; font-weight:800; color:#fff;
+      background:var(--danger); padding:4px 10px; border-radius:6px; font-family:var(--mono);
+      box-shadow: 0 0 8px rgba(255,84,112,0.4); border: 1px solid #ff7a90;
+    }
+
+.perguntas-label {
+  font-size:12px;
+  color:var(--text-dim);
+  font-weight:700;
+  width:100%;
+  margin-bottom:8px;
+}
+
+.perguntas-chips {
+  margin: 2px;
+  display:flex;
+  flex-wrap:nowrap;
+  gap:8px;
+  width:100%;
+  overflow-x:auto;
+  overflow-y:hidden;
+  scrollbar-width:none;
+  -webkit-overflow-scrolling:touch;
+}
+
+.perguntas-chips::-webkit-scrollbar {
+  display:none;
+}
+
+.chip-pergunta {
+  padding:7px 13px;
+  border-radius:20px;
+  border:1px dashed var(--accent-2);
+  background:var(--accent-2-soft);
+  color:var(--accent-2);
+  font-size:12.5px;
+  font-weight:700;
+  font-family:var(--mono);
+
+  flex:0 0 auto;
+  white-space:nowrap;
+}
+nav.tabs .search-bar {
+    display: none;
+}
+
+nav.tabs:has(.tab-btn[data-tab="buscar"].active) .search-bar {
+    display: flex;
+    width: 100%;
+}
+nav.tabs {
+  position: fixed; bottom:0; left:0; right:0; top:auto;flex-wrap: wrap;
+  justify-content: space-evenly; padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+  background: var(--panel); border-top:1px solid var(--border); border-bottom:none;
+}
+nav.tabs #perguntasBox {
+display: none;
+}
+
+nav.tabs:has(.tab-btn[data-tab="buscar"].active) #perguntasBox {
+    display: block;
+}
 </style>
 </head>
 <body>
@@ -283,95 +381,93 @@
       <div class="logo">🔧</div>
       <div class="brand-text">
         <h1>Diagnóstico Mestre</h1>
-        <small>banco de causas · motor bayesiano</small>
+        <small>banco de causas · oficina</small>
       </div>
     </div>
     <div id="statsMini">carregando…</div>
   </header>
 
+<div class="barra-fixa-topo">
+
+  
+
   <nav class="tabs" id="tabs">
-    <button class="tab-btn active" data-tab="buscar"><span class="tab-icon">🔍</span><span class="tab-label">Buscar</span></button>
-    <button class="tab-btn" data-tab="adicionar"><span class="tab-icon">➕</span><span class="tab-label">Adicionar</span></button>
-    <button class="tab-btn" data-tab="gerenciar"><span class="tab-icon">🗂️</span><span class="tab-label">Gerenciar</span></button>
-    <button class="tab-btn" data-tab="dados"><span class="tab-icon">💾</span><span class="tab-label">Dados</span></button>
-  </nav>
-
-  <main>
-
-    <!-- BUSCAR -->
-    <section id="tab-buscar" class="tab-panel active">
-      <div class="search-bar">
+    <div class="search-bar">
         <input id="searchInput" type="text" placeholder="Ex: jet ski GTI 130 só liga fora da água" autocomplete="off">
         <select id="filterCategoria"><option value="">Todas as categorias</option></select>
         <button id="btnBuscar">Buscar</button>
       </div>
-      <p class="search-hint">💡 O motor bayesiano aprende com a oficina. Casos marcados como resolvidos no passado ganham peso e aparecem no topo! Use "Descartar" para ir eliminando suspeitos.</p>
+    <div id="perguntasBox" class="perguntas-box"></div>
+    <button class="tab-btn active" data-tab="buscar"><span class="tab-icon">🔍</span><span class="tab-label">Buscar</span></button>
+    <button class="tab-btn" data-tab="adicionar"><span class="tab-icon">➕</span><span class="tab-label">Adicionar</span></button>
+    <button class="tab-btn" data-tab="sherlock"><span class="tab-icon">🕵️</span><span class="tab-label">Sherlock</span></button>
+    <button class="tab-btn" data-tab="gerenciar"><span class="tab-icon">🗂️</span><span class="tab-label">Gerenciar</span></button>
+    <button class="tab-btn" data-tab="dados"><span class="tab-icon">💾</span><span class="tab-label">Dados</span></button>
+  </nav>
+
+</div>
+
+  <main>
+
+    <!-- BUSCAR -->
+    <section id="tab-buscar" class="tab-panel active" style="max-height: 63vh; overflow-y: auto; scrollbar-width: none;">
+      
+      <button type="button" id="toggleInfo" class="btn-secondary">🧠 Como funciona a busca?</button>
+      <p id="infoBayes">
+        Cada palavra (e cada par de palavras) da sua busca é uma <b>evidência</b>. O sistema calcula, por Naive Bayes com peso <b>TF-IDF</b>, a probabilidade de cada caso ser a causa real — termos raros e frases inteiras pesam mais que palavras genéricas. <b>Sinônimos</b> que você cadastrar (ex: "não liga" = "não pega") são reconhecidos automaticamente. Ao <b>descartar</b> um suspeito, a probabilidade dos demais é redistribuída. Nos casos mais importantes, você pode anexar <b>diferenciadores</b> — perguntas Sim/Não que ajustam a probabilidade na hora. <b>Confirmar</b> um caso aumenta seu peso em buscas futuras parecidas.
+      </p>
       <div id="searchMeta" class="search-meta"></div>
       <div id="resultsList" class="results-list"></div>
+      <div id="perguntasBox" class="perguntas-box"></div>
     </section>
 
     <!-- ADICIONAR -->
     <section id="tab-adicionar" class="tab-panel">
-      
-      <!-- NOVO: ADIÇÃO INTELIGENTE (Auto-Bayes NLP) -->
-      <div class="card destaque">
-        <h3>⚡ Adição Inteligente (NLP)</h3>
-        <p class="hint">Cole um texto ou diagnóstico livre. O sistema filtra, extrai tags, gera o título e tenta categorizar automaticamente!</p>
-        <textarea id="fTextoLivre" placeholder="Ex: Hoje peguei um sea-doo gti 130 que só liga fora da água. O defeito era o conector do chicote principal oxidado." style="min-height: 80px;"></textarea>
-        <button type="button" id="btnSmartAdd" class="btn-primary" style="margin-top:10px; width: 100%;">🧠 Processar e Salvar Magicamente</button>
-      </div>
+      <div class="card">
+        <h3>Adicionar caso(s)</h3>
+        <p class="hint">
+          Cole o problema e as causas prováveis — só isso já basta. O título é criado automaticamente a partir da primeira linha.<br>
+          Para colar vários casos de uma vez, separe cada um com uma linha contendo apenas <code>---</code>.
+        </p>
+        <textarea id="quickText" placeholder="Moto Honda CG 150 não pega a frio
+Verificar vela de ignição, regulagem do afogador, carga da bateria...
 
-      <div class="add-grid">
-        <div class="card">
-          <h3>Adicionar caso único</h3>
-          <p class="hint">Cadastre manualmente e detalhadamente um sintoma.</p>
-          <form id="formSingle">
-            <label for="fTitulo">Título / sintoma</label>
-            <input id="fTitulo" type="text" placeholder="Ex: Jet Ski GTI 130 só liga fora da água" required>
+---
 
-            <label for="fCategoria">Categoria / modelo</label>
-            <input id="fCategoria" type="text" list="categoriasList" placeholder="Ex: Moto Honda CG 150">
-            <datalist id="categoriasList"></datalist>
+Moto Honda CG 150 morre em marcha lenta
+Verificar parafuso de ar, vazamento de vácuo, vela suja..."></textarea>
 
-            <label for="fTags">Tags (separadas por vírgula)</label>
-            <input id="fTags" type="text" placeholder="Ex: partida a frio, vela, carburador">
-
-            <label for="fCausas">Causas prováveis / observações</label>
-            <textarea id="fCausas" placeholder="Descreva as possíveis causas..." required></textarea>
-
-            <div class="form-actions">
-              <button type="submit" id="btnSubmitSingle" class="btn-primary">💾 Salvar caso</button>
-              <button type="button" id="btnCancelEdit" class="btn-secondary" style="display:none;">Cancelar edição</button>
-            </div>
-          </form>
+        <button type="button" id="toggleAvancado" class="btn-secondary" style="margin-top:10px;">⚙️ Opções avançadas</button>
+        <div id="avancadoBox" style="display:none; margin-top:12px;">
+          <label for="quickCategoriaPadrao">Categoria / modelo padrão (opcional)</label>
+          <input id="quickCategoriaPadrao" type="text" list="categoriasList" placeholder="Ex: Moto Honda CG 150 — aplica a todos os casos deste texto">
+          <p class="hint" style="margin-top:10px;">Dica: dentro de cada bloco você também pode incluir linhas <code>Categoria: ...</code> e <code>Tags: ...</code> logo após o título, se quiser organizar melhor.</p>
         </div>
 
-        <div class="card">
-          <h3>Importação em massa</h3>
-          <p class="hint">
-            Cole vários casos de uma vez. Separe cada caso com uma linha contendo apenas <code>---</code>.<br>
-            Logo após o título você pode incluir <code>Categoria: ...</code> e <code>Tags: ...</code> (opcional).
-          </p>
-          <input id="bulkCategoriaPadrao" type="text" list="categoriasList" placeholder="Categoria padrão para casos sem 'Categoria:' (opcional)">
-          <textarea id="bulkText" placeholder="Moto Honda CG 150 não pega a frio
-Categoria: Moto Honda CG 150
-Tags: partida a frio, vela, carburador
-Verificar vela de ignição..."></textarea>
-          <div class="bulk-actions">
-            <button type="button" id="btnParsePreview" class="btn-secondary">👁️ Pré-visualizar</button>
-            <button type="button" id="btnBulkImport" class="btn-primary">⬆️ Importar tudo</button>
-          </div>
-          <div id="bulkPreview"></div>
+        <div class="form-actions">
+          <button type="button" id="btnQuickPreview" class="btn-secondary">👁️ Pré-visualizar</button>
+          <button type="button" id="btnQuickSave" class="btn-primary">💾 Salvar no banco</button>
         </div>
-
+        <div id="quickPreview"></div>
       </div>
     </section>
-
+<!-- SHERLOCK HOLMES -->
+    <section id="tab-sherlock" class="tab-panel">
+      <div class="card destaque">
+        <h3>🕵️ A Inteligência Oculta da Oficina</h3>
+        <p class="hint">O algoritmo rastreia todos os seus casos, cruzando defeitos, categorias e tags para encontrar padrões que os olhos humanos deixam passar.</p>
+        <button type="button" id="btnInvestigar" class="btn-primary" style="width: 100%; margin-bottom: 16px;">🔍 Iniciar Investigação Profunda</button>
+        <div id="sherlockResultados" style="display:flex; flex-direction:column; gap:10px;">
+           <div class="empty">Clique no botão acima para o Sherlock analisar os dados da sua oficina.</div>
+        </div>
+      </div>
+    </section>
     <!-- GERENCIAR -->
     <section id="tab-gerenciar" class="tab-panel">
       <div class="manage-toolbar">
         <input id="manageSearch" type="text" placeholder="Filtrar por título ou categoria...">
-        <select id="manageCategoria"><option value="">Todas as categorias</option></select>
+        <select id="manageCategoria" style="padding: 13px 12px;border-radius: var(--radius-sm);border: 1px solid var(--border);background: var(--panel);
+         color: var(--text-dim);font-size: 13.5px;max-width: 85px;font-family: var(--mono);"><option value="">Todas as categorias</option></select>
         <span id="manageCount"></span>
       </div>
       <div id="manageList" class="manage-list"></div>
@@ -380,13 +476,21 @@ Verificar vela de ignição..."></textarea>
     <!-- DADOS -->
     <section id="tab-dados" class="tab-panel">
       <div class="card">
+        <h3>🔤 Sinônimos</h3>
+        <p class="hint">Ensine o sistema que frases diferentes significam a mesma coisa. Uma frase por linha dentro do mesmo grupo — a primeira linha vira a forma principal. Isso melhora a busca sem precisar reescrever nada nos casos já cadastrados.</p>
+        <div id="sinonimosList"></div>
+        <div class="form-actions">
+          <button type="button" id="btnAddSinonimo" class="btn-secondary">+ Novo grupo de sinônimos</button>
+        </div>
+      </div>
+      <div class="card">
         <h3>Exportar banco de dados</h3>
-        <p class="hint">Gera um arquivo .json com todos os casos cadastrados neste navegador/dispositivo.</p>
+        <p class="hint">Gera um arquivo .json com todos os casos, confirmações, diferenciadores e sinônimos. Use para levar o banco para outro celular, PC, ou fazer backup.</p>
         <button id="btnExport" class="btn-primary">⬇️ Exportar JSON</button>
       </div>
       <div class="card">
         <h3>Importar banco de dados</h3>
-        <p class="hint">Importa um arquivo .json exportado por este mesmo programa. O banco só cresce, nunca duplica.</p>
+        <p class="hint">Importa um arquivo .json exportado por este mesmo programa. Casos com título + categoria idênticos a algum já existente são ignorados — o banco só cresce, nunca duplica.</p>
         <input type="file" id="fileImport" accept=".json,application/json">
         <div class="form-actions">
           <button id="btnImportFile" class="btn-primary">⬆️ Importar arquivo</button>
@@ -395,13 +499,15 @@ Verificar vela de ignição..."></textarea>
       </div>
       <div class="card danger">
         <h3>⚠️ Zona de risco</h3>
-        <p class="hint">Apaga permanentemente todos os casos deste dispositivo. Exporte um backup antes.</p>
+        <p class="hint">Apaga permanentemente todos os casos e sinônimos deste dispositivo. Exporte um backup antes.</p>
         <button id="btnClearAll" class="btn-secondary" style="border-color:var(--danger); color:var(--danger);">🗑️ Apagar todo o banco</button>
       </div>
     </section>
 
   </main>
 </div>
+
+<datalist id="categoriasList"></datalist>
 
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
@@ -416,19 +522,24 @@ Verificar vela de ignição..."></textarea>
 (function(){
   'use strict';
 
-  // Atualizado a versão para forçar upgrade seguro se necessário
   const DB_NAME = 'diagnosticoMestreDB';
-  const DB_VERSION = 2; 
-  const STORE = 'casos';
+  const DB_VERSION = 3;
+  const STORE_CASOS = 'casos';
+  const STORE_SINONIMOS = 'sinonimos';
+  const ALPHA = 1;              // suavização de Laplace
+  const K_CONFIRMACAO = 0.4;    // peso do prior por confirmação
+  const INTENSIDADES = { pouco:[0.4,-0.4], medio:[0.9,-0.9], muito:[1.6,-1.6] };
+
   let db = null;
   let allEntries = [];
+  let sinonimos = [];
+  let bayesIndex = null;
   let eliminados = new Set();
+  let respostasDiferenciadores = new Map(); // casoId -> Map(idx -> 'sim'|'nao')
   let ultimaBusca = null;
   let manageLimit = 150;
   let resultLimit = 60;
-
-  // Stopwords para NLP
-  const stopWords = ['o','a','e','de','do','da','em','um','uma','para','com','que','na','no','era','foi','é','os','as','ao','aos','se','por','isso','aquilo','como','mas','ou','já','esta','este','dos','das'];
+  let difEditandoAtual = [];
 
   /* ---------------- IndexedDB ---------------- */
   function openDB(){
@@ -437,75 +548,88 @@ Verificar vela de ignição..."></textarea>
       const req = indexedDB.open(DB_NAME, DB_VERSION);
       req.onupgradeneeded = (e)=>{
         const _db = e.target.result;
-        if(!_db.objectStoreNames.contains(STORE)){
-          const s = _db.createObjectStore(STORE, { keyPath:'id', autoIncrement:true });
+        if(!_db.objectStoreNames.contains(STORE_CASOS)){
+          const s = _db.createObjectStore(STORE_CASOS, { keyPath:'id', autoIncrement:true });
           s.createIndex('categoria', 'categoria', { unique:false });
           s.createIndex('dataAdicao', 'dataAdicao', { unique:false });
+        }
+        if(!_db.objectStoreNames.contains(STORE_SINONIMOS)){
+          _db.createObjectStore(STORE_SINONIMOS, { keyPath:'id', autoIncrement:true });
         }
       };
       req.onsuccess = (e)=> { db = e.target.result; resolve(db); };
       req.onerror = (e)=> reject(e.target.error || new Error('Falha ao abrir o banco local.'));
     });
   }
-  function store(mode){ return db.transaction(STORE, mode).objectStore(STORE); }
-  function dbGetAll(){
+  function store(nome, mode){ return db.transaction(nome, mode).objectStore(nome); }
+  function dbGetAll(nome){
     return new Promise((resolve,reject)=>{
-      const r = store('readonly').getAll();
+      const r = store(nome,'readonly').getAll();
       r.onsuccess = ()=>resolve(r.result);
       r.onerror = ()=>reject(r.error);
     });
   }
-  function dbAdd(entry){
+  function dbAdd(nome, entry){
     return new Promise((resolve,reject)=>{
-      const r = store('readwrite').add(entry);
+      const r = store(nome,'readwrite').add(entry);
       r.onsuccess = ()=>resolve(r.result);
       r.onerror = ()=>reject(r.error);
     });
   }
-  function dbPut(entry){
+  function dbPut(nome, entry){
     return new Promise((resolve,reject)=>{
-      const r = store('readwrite').put(entry);
+      const r = store(nome,'readwrite').put(entry);
       r.onsuccess = ()=>resolve(r.result);
       r.onerror = ()=>reject(r.error);
     });
   }
-  function dbDelete(id){
+  function dbDelete(nome, id){
     return new Promise((resolve,reject)=>{
-      const r = store('readwrite').delete(id);
+      const r = store(nome,'readwrite').delete(id);
       r.onsuccess = ()=>resolve();
       r.onerror = ()=>reject(r.error);
     });
   }
-  function dbClear(){
+  function dbClear(nome){
     return new Promise((resolve,reject)=>{
-      const r = store('readwrite').clear();
+      const r = store(nome,'readwrite').clear();
       r.onsuccess = ()=>resolve();
       r.onerror = ()=>reject(r.error);
     });
   }
 
+  async function carregarSinonimos(){
+    sinonimos = await dbGetAll(STORE_SINONIMOS);
+  }
   async function refreshCache(){
-    allEntries = await dbGetAll();
+    allEntries = await dbGetAll(STORE_CASOS);
+    construirIndiceBayes();
     atualizarStatsMini();
     popularFiltrosCategoria();
   }
 
-  /* ---------------- Utils ---------------- */
+/* ---------------- Utils ---------------- */
+  // Lista de NLP (StopWords) - Ignora tudo que for ruído
+  const stopWords = new Set([
+    'o','a','e','de','do','da','em','um','uma','para','com','que','na','no',
+    'nas','nos','era','foi','é','são','os','as','ao','aos','se','por','isso',
+    'aquilo','como','mas','ou','já','esta','este','dos','das','tem','nao','não'
+  ]);
+
   function normalize(str){
     return (str||'').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
   }
+
   function tokenize(str){
-    return normalize(str).split(/[^a-z0-9]+/i).filter(t=>t.length>1);
+    if(!str) return [];
+    // Filtro NLP: Quebra as palavras, ignora menores que 2 letras E ignora as StopWords
+    return normalize(str).split(/[^a-z0-9]+/i)
+      .filter(t => t.length > 2 && !stopWords.has(t));
   }
-  function contarOcorrencias(haystack, needle){
-    if(!needle) return 0;
-    let count=0, pos=0;
-    while(true){
-      pos = haystack.indexOf(needle,pos);
-      if(pos===-1) break;
-      count++; pos += needle.length;
-    }
-    return count;
+  function bigramas(tokens){
+    const out = [];
+    for(let i=0;i<tokens.length-1;i++) out.push(tokens[i]+'_'+tokens[i+1]);
+    return out;
   }
   function escapeHtml(str){
     return (str||'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -533,42 +657,163 @@ Verificar vela de ignição..."></textarea>
     return function(...args){ clearTimeout(t); t = setTimeout(()=>fn.apply(this,args), ms); };
   }
 
-  /* ---------------- Motor de Busca BAYESIANO ---------------- */
-  function scoreEntry(entry, tokens, queryNorm){
-    const tituloN = normalize(entry.titulo);
-    const catN = normalize(entry.categoria);
-    const tagsN = normalize((entry.tags||[]).join(' '));
-    const causasN = normalize(entry.causas);
-    
-    let score = 0;
-    if(queryNorm){
-      if(tituloN.includes(queryNorm)) score += 70;
-      if(catN.includes(queryNorm)) score += 35;
-      if(causasN.includes(queryNorm)) score += 25;
-    }
-    tokens.forEach(tok=>{
-      score += contarOcorrencias(tituloN, tok) * 9;
-      score += contarOcorrencias(catN, tok) * 6;
-      score += contarOcorrencias(tagsN, tok) * 7;
-      score += contarOcorrencias(causasN, tok) * 1.2;
+  /* ---------------- Sinônimos ---------------- */
+  function aplicarSinonimosTexto(texto){
+    let t = normalize(texto);
+    sinonimos.forEach(grupo=>{
+      const canon = normalize(grupo.canonico);
+      if(!canon) return;
+      (grupo.variantes||[]).forEach(variante=>{
+        const v = normalize(variante);
+        if(!v || v===canon) return;
+        const re = new RegExp('(^|[^a-z0-9])'+escapeRegex(v)+'(?=[^a-z0-9]|$)','g');
+        t = t.replace(re, (m, pre)=> pre+canon);
+      });
+    });
+    return t;
+  }
+  function tokensComSinonimos(texto){
+    const uni = tokenize(aplicarSinonimosTexto(texto));
+    return uni.concat(bigramas(uni));
+  }
+  function termosParaDestaque(query){
+    const termos = new Set();
+    tokenize(query).forEach(t=> termos.add(t));
+    const queryNorm = normalize(query);
+    sinonimos.forEach(grupo=>{
+      const formas = [grupo.canonico, ...(grupo.variantes||[])].map(normalize).filter(Boolean);
+      const bateAlgumaForma = formas.some(f=>{
+        const re = new RegExp('(^|[^a-z0-9])'+escapeRegex(f)+'([^a-z0-9]|$)');
+        return re.test(queryNorm);
+      });
+      if(bateAlgumaForma){
+        formas.forEach(f=> f.split(/\s+/).forEach(w=>{ if(w.length>1) termos.add(w); }));
+      }
+    });
+    return Array.from(termos);
+  }
+
+  /* ---------------- Índice Naive Bayes (TF-IDF + bigramas) ---------------- */
+  function construirIndiceBayes(){
+    const brutos = new Map();
+    const df = new Map();
+
+    const extrairCampo = (texto, peso, destino)=>{
+      tokensComSinonimos(texto).forEach(t=> destino.set(t, (destino.get(t)||0)+peso));
+    };
+
+    allEntries.forEach(e=>{
+      const counts = new Map();
+      extrairCampo(e.titulo, 3, counts);
+      extrairCampo(e.categoria||'', 2, counts);
+      extrairCampo((e.tags||[]).join(' '), 2, counts);
+      extrairCampo(e.causas, 1, counts);
+      // NOVA LINHA DA BOMBA MATEMÁTICA: Peso 50!
+      extrairCampo(e.sintomasCapitais||'', 50, counts);
+      brutos.set(e.id, counts);
+      counts.forEach((_, tok)=> df.set(tok, (df.get(tok)||0)+1));
     });
 
-    // O Segredo Bayesiano original 100% aplicado
-    const sucessosOficina = entry.sucessos || 0;
-    const pesoBayesiano = 1 + (sucessosOficina * 0.15); 
+    const N = allEntries.length || 1;
+    const idf = new Map();
+    df.forEach((freq, tok)=> idf.set(tok, Math.log((N+1)/(freq+1)) + 1));
+
+    const docs = new Map();
+    const vocab = new Set();
+    brutos.forEach((counts, id)=>{
+      const pesados = new Map();
+      let total = 0;
+      counts.forEach((peso, tok)=>{
+        const w = peso * (idf.get(tok)||1);
+        pesados.set(tok, w);
+        total += w;
+        vocab.add(tok);
+      });
+      docs.set(id, { counts: pesados, total: total||1 });
+    });
+
+    bayesIndex = { vocabSize: vocab.size || 1, docs, idf };
+  }
+
+  function logLikelihoodTermo(doc, token){
+    const count = doc.counts.get(token) || 0;
+    return Math.log((count + ALPHA) / (doc.total + ALPHA * bayesIndex.vocabSize));
+  }
+
+  function calcularScoresBayes(query, categoria){
+    // 1. O FILTRO NEGATIVO: Separa palavras que começam com "-"
+    const palavrasCruas = query.split(/\s+/);
+    const termosExcluidos = palavrasCruas.filter(t => t.startsWith('-') && t.length > 2).map(t => normalize(t.substring(1)));
+    const queryLimpa = palavrasCruas.filter(t => !t.startsWith('-')).join(' ');
+
+    const tokens = tokensComSinonimos(queryLimpa);
+    if(tokens.length===0 && termosExcluidos.length===0) return [];
     
-    return score * pesoBayesiano;
-  }
-  function buscar(query, categoria){
-    const queryNorm = normalize(query);
-    const tokens = tokenize(query);
-    if(!queryNorm) return [];
+    const queryCounts = new Map();
+    tokens.forEach(t=> queryCounts.set(t, (queryCounts.get(t)||0)+1));
+
     let base = allEntries;
-    if(categoria) base = base.filter(e=> e.categoria === categoria);
-    return base.map(e=> ({ entry:e, score: scoreEntry(e, tokens, queryNorm) }))
-      .filter(r=> r.score > 0)
-      .sort((a,b)=> b.score - a.score);
+    if(categoria) base = base.filter(e=> e.categoria===categoria);
+
+    // Filtra casos que tenham algum cruzamento com a query (positiva ou negativa)
+    const candidatos = base.filter(e=>{
+      const doc = bayesIndex.docs.get(e.id);
+      if(!doc) return false;
+      for(const t of queryCounts.keys()) if(doc.counts.has(t)) return true;
+      for(const t of termosExcluidos) if(doc.counts.has(t)) return true;
+      return false;
+    });
+
+    const resultados = candidatos.map(e=>{
+      const doc = bayesIndex.docs.get(e.id);
+      let score = Math.log(1 + K_CONFIRMACAO * (e.confirmacoes||0));
+
+      // 1. Somatória normal das probabilidades TF-IDF
+      queryCounts.forEach((qtd, tok)=>{ score += qtd * logLikelihoodTermo(doc, tok); });
+
+      // 2. FILTRO NEGATIVO: Se o caso tiver a palavra que o usuário negou (-bateria), afunda o score
+      termosExcluidos.forEach(ex => {
+        if (doc.counts.has(ex)) {
+           score -= 100; // Penalidade Severa (joga pro fundo da lista)
+        }
+      });
+
+      // 3. A GUILHOTINA (Sintoma Excludente)
+      if (e.sintomasExcludentes) {
+        const excludentesEntry = tokenize(e.sintomasExcludentes);
+        // Se a busca cruzar com o Excludente, a probabilidade é aniquilada!
+        if (excludentesEntry.some(exc => tokens.includes(exc))) {
+           score -= 1000; // Penalidade Absoluta (Zera a probabilidade)
+        }
+      }
+
+      return { entry: e, score };
+    });
+    
+    // Filtra tudo que caiu na Guilhotina ou foi excluído para nem aparecer na tela
+    return resultados.filter(r => r.score > -50).sort((a,b)=> b.score - a.score);
   }
+  
+  function ajusteDiferenciadorParaCaso(entry){
+    const respostas = respostasDiferenciadores.get(entry.id);
+    if(!respostas || !entry.diferenciadores) return 0;
+    let soma = 0;
+    respostas.forEach((resp, idx)=>{
+      const d = entry.diferenciadores[idx];
+      if(!d) return;
+      soma += resp==='sim' ? (d.logSim||0) : (d.logNao||0);
+    });
+    return soma;
+  }
+
+  function softmaxPercent(items){
+    if(items.length===0) return [];
+    const max = Math.max(...items.map(i=>i.score));
+    const exps = items.map(i=> Math.exp(i.score - max));
+    const soma = exps.reduce((a,b)=>a+b,0);
+    return exps.map(v=> (v/soma)*100);
+  }
+
   function gerarTrecho(causas, tokens){
     const tamanho = 190;
     const causasN = normalize(causas);
@@ -580,14 +825,16 @@ Verificar vela de ignição..."></textarea>
     let trecho = (start>0?'… ':'') + causas.substring(start,end).trim() + (end<causas.length?' …':'');
     return destacarTermos(trecho, tokens);
   }
-  function destacarTermos(texto, tokens){
+function destacarTermos(texto, tokens){
     let escapado = escapeHtml(texto);
     const vistos = new Set();
     tokens.forEach(tok=>{
-      if(tok.length<2 || vistos.has(tok)) return;
+      // Se a palavra tiver menos de 3 letras (como 'na', 'de') a gente nem tenta pintar
+      if(tok.length<3 || vistos.has(tok)) return; 
       vistos.add(tok);
       try{
-        const re = new RegExp('('+accentPattern(tok)+')','gi');
+        // O \\b (Word Boundary) é o Sniper. Só pinta a palavra se ela estiver isolada!
+        const re = new RegExp('\\b(' + accentPattern(tok) + ')\\b', 'gi');
         escapado = escapado.replace(re, '<mark>$1</mark>');
       }catch(e){ /* ignora token problemático */ }
     });
@@ -599,77 +846,162 @@ Verificar vela de ignição..."></textarea>
     const query = document.getElementById('searchInput').value.trim();
     const categoria = document.getElementById('filterCategoria').value;
     const chave = query+'|'+categoria;
-    if(chave !== ultimaBusca){ eliminados = new Set(); ultimaBusca = chave; resultLimit = 60; }
-    const tokens = tokenize(query);
-    const resultados = buscar(query, categoria);
-    renderResultados(resultados, tokens, query);
+    if(chave !== ultimaBusca){ eliminados = new Set(); respostasDiferenciadores = new Map(); ultimaBusca = chave; resultLimit = 60; }
+    const resultadosBrutos = calcularScoresBayes(query, categoria);
+    const tokensDestaque = termosParaDestaque(query);
+    renderResultados(resultadosBrutos, tokensDestaque, query);
   }
 
-  function renderResultados(resultados, tokens, query){
+  function renderResultados(resultadosBrutos, tokens, query){
     const container = document.getElementById('resultsList');
     const meta = document.getElementById('searchMeta');
-    if(!query){
-      meta.textContent = '';
-      container.innerHTML = '';
-      return;
-    }
-    if(resultados.length===0){
+    const perguntasBox = document.getElementById('perguntasBox');
+    if(!query){ meta.textContent=''; container.innerHTML=''; perguntasBox.innerHTML=''; return; }
+    if(resultadosBrutos.length===0){
       meta.textContent = 'Nenhum caso compatível encontrado.';
       container.innerHTML = '<div class="empty">🔎 Nenhum suspeito encontrado no banco de dados para esse termo.<br>Tente outras palavras ou cadastre este caso na aba "Adicionar".</div>';
+      perguntasBox.innerHTML = '';
       return;
     }
-    const maxScore = resultados[0].score;
+
+    const resultados = resultadosBrutos.map(r=> ({
+      entry: r.entry,
+      score: r.score + ajusteDiferenciadorParaCaso(r.entry)
+    })).sort((a,b)=> b.score-a.score);
+
     const ativos = resultados.filter(r=> !eliminados.has(r.entry.id));
     const descartados = resultados.filter(r=> eliminados.has(r.entry.id));
-    const ordenados = ativos.concat(descartados);
-    const visiveis = ordenados.slice(0, resultLimit);
+    const percsAtivos = softmaxPercent(ativos);
 
-    meta.textContent = resultados.length + ' caso(s) compatível(is), ordenado(s) por relevância' + (resultados.length>visiveis.length? ' — mostrando '+visiveis.length : '');
+    meta.textContent = resultados.length + ' caso(s) compatível(is)' + (descartados.length? ' · '+ativos.length+' em investigação · '+descartados.length+' descartado(s)' : '');
 
-    let rankAtivo = 0;
-    let html = visiveis.map(r=>{
-      const el = eliminados.has(r.entry.id);
-      const pct = Math.max(6, Math.min(100, Math.round((r.score/maxScore)*100)));
+    const visiveis = ativos.slice(0, resultLimit);
+    const percVis = percsAtivos.slice(0, resultLimit);
+
+    let html = visiveis.map((r,i)=>{
+      const pct = percVis[i];
       const trecho = gerarTrecho(r.entry.causas, tokens);
-      let rankLabel;
-      if(el){ rankLabel = '✕'; } else { rankAtivo++; rankLabel = '#'+rankAtivo; }
-      
-      const badgeSucesso = (r.entry.sucessos > 0) ? `<span class="badge badge-success">🔥 Resolvido ${r.entry.sucessos}x</span>` : '';
-
+      const conf = r.entry.confirmacoes||0;
+      // Verifica se o caso tem sintoma capital E se o usuário digitou ele
+      let badgeCapital = '';
+      if (r.entry.sintomasCapitais) {
+         const capTokens = tokenize(r.entry.sintomasCapitais);
+         // Se a busca do usuário (tokens) contiver a palavra capital
+         if (capTokens.some(ct => tokens.includes(ct))) {
+             badgeCapital = `<div class="capital-badge">🚨 SINTOMA CAPITAL DETECTADO</div>`;
+         }
+      }
       return `
-      <div class="result-card ${el?'eliminado':''}" data-id="${r.entry.id}">
-        <div class="result-rank">${rankLabel}</div>
+      <div class="result-card" data-id="${r.entry.id}">
+        <div class="result-rank">#${i+1}</div>
         <div class="result-main">
           <div class="result-header">
             <h4>${escapeHtml(r.entry.titulo)}</h4>
-            <div>
-               <span class="badge">${escapeHtml(r.entry.categoria || 'sem categoria')}</span>
-               ${badgeSucesso}
-            </div>
+            <span class="badge">${escapeHtml(r.entry.categoria || 'sem categoria')}</span>
           </div>
-          <div class="prob-bar"><div class="prob-fill" style="width:${pct}%"></div><span class="prob-label">🎯 ${pct}% de probabilidade (bayes)</span></div>
+          <div class="prob-bar"><div class="prob-fill" style="width:${Math.max(3,pct)}%"></div><span class="prob-label">🧠 ${pct.toFixed(1)}% · Bayes</span></div>
+          ${badgeCapital}
           <p class="snippet">${trecho}</p>
+          ${conf>0 ? `<span class="conf-badge">✅ confirmado ${conf}x</span>` : ''}
+          ${renderDiferenciadoresBox(r.entry)}
         </div>
         <div class="result-actions">
-          <button class="btn-ver" data-action="ver" data-id="${r.entry.id}">Ver caso</button>
-          <button class="btn-descartar" data-action="descartar" data-id="${r.entry.id}">${el?'↩ Reincluir':'✕ Descartar'}</button>
+          <button class="btn-ver" data-action="ver" data-id="${r.entry.id}">Ver completo</button>
+          <button class="btn-confirmar" data-action="confirmar" data-id="${r.entry.id}">✅ Confirmar</button>
+          <button class="btn-descartar" data-action="descartar" data-id="${r.entry.id}">✕ Descartar</button>
         </div>
       </div>`;
     }).join('');
 
+    html += descartados.map(r=> `
+      <div class="result-card eliminado" data-id="${r.entry.id}">
+        <div class="result-rank">✕</div>
+        <div class="result-main">
+          <div class="result-header"><h4>${escapeHtml(r.entry.titulo)}</h4><span class="badge">${escapeHtml(r.entry.categoria||'sem categoria')}</span></div>
+          <p class="snippet" style="opacity:.6;">Descartado da investigação — a probabilidade foi redistribuída entre os demais.</p>
+        </div>
+        <div class="result-actions">
+          <button class="btn-ver" data-action="ver" data-id="${r.entry.id}">Ver completo</button>
+          <button class="btn-descartar" data-action="descartar" data-id="${r.entry.id}">↩ Reincluir</button>
+        </div>
+      </div>`).join('');
+
     container.innerHTML = html;
 
-    if(resultados.length > visiveis.length){
+    if(ativos.length > visiveis.length){
       const btn = document.createElement('button');
       btn.className = 'btn-secondary';
       btn.style.width = '100%';
-      btn.textContent = 'Carregar mais resultados ('+(resultados.length-visiveis.length)+' restantes)';
+      btn.style.marginTop = '4px';
+      btn.textContent = 'Carregar mais suspeitos ('+(ativos.length-visiveis.length)+' restantes)';
       btn.onclick = ()=>{ resultLimit += 60; executarBusca(); };
       container.appendChild(btn);
     }
+
+    renderPerguntasDiferenciadoras(ativos, tokensComSinonimos(query));
+  }
+
+  function renderDiferenciadoresBox(entry){
+    if(!entry.diferenciadores || entry.diferenciadores.length===0) return '';
+    const respostas = respostasDiferenciadores.get(entry.id) || new Map();
+    return '<div class="dif-box">' + entry.diferenciadores.map((d,idx)=>{
+      const resp = respostas.get(idx);
+      return `<div class="dif-item">
+        <span class="dif-pergunta">🔬 ${escapeHtml(d.pergunta)}</span>
+        <span class="dif-botoes">
+          <button type="button" class="dif-btn ${resp==='sim'?'ativo-sim':''}" data-action="diferenciador-sim" data-id="${entry.id}" data-idx="${idx}">Sim</button>
+          <button type="button" class="dif-btn ${resp==='nao'?'ativo-nao':''}" data-action="diferenciador-nao" data-id="${entry.id}" data-idx="${idx}">Não</button>
+        </span>
+      </div>`;
+    }).join('') + '</div>';
+  }
+
+  function renderPerguntasDiferenciadoras(ativos, tokensQuery){
+    const box = document.getElementById('perguntasBox');
+    if(!box) return;
+    if(ativos.length < 2){ box.innerHTML=''; return; }
+    const top = ativos.slice(0,4);
+    const jaConsultados = new Set(tokensQuery);
+    const candidatosTermo = new Map();
+    top.forEach(r=>{
+      const doc = bayesIndex.docs.get(r.entry.id);
+      if(!doc) return;
+      doc.counts.forEach((cnt, tok)=>{
+        if(jaConsultados.has(tok) || tok.length<3) return;
+        if(!candidatosTermo.has(tok)) candidatosTermo.set(tok, []);
+        candidatosTermo.get(tok).push(cnt/doc.total);
+      });
+    });
+    const pontuados = [];
+    candidatosTermo.forEach((freqs, tok)=>{
+      const completos = freqs.slice();
+      while(completos.length < top.length) completos.push(0);
+      completos.sort((a,b)=> b-a);
+      const spread = completos[0]-completos[1];
+      if(spread > 0.01) pontuados.push({ tok, spread });
+    });
+    pontuados.sort((a,b)=> b.spread-a.spread);
+    const melhores = pontuados.slice(0,5);
+    if(melhores.length===0){ box.innerHTML=''; return; }
+    box.innerHTML =
+  '<div class="perguntas-label">💡 Dicas Isso Abaixo também acontece? (ajuda a filtrar a busca)</div>' +
+  '<div class="perguntas-chips">' +
+  melhores.map(p=> `<button type="button" class="chip-pergunta" data-token="${escapeHtml(p.tok.replace(/_/g,' '))}">+ ${escapeHtml(p.tok.replace(/_/g,' '))}</button>`).join('') +
+  '</div>';
   }
 
   document.addEventListener('click', (e)=>{
+    const chip = e.target.closest('.chip-pergunta');
+    if(chip){
+      const tok = chip.dataset.token;
+      const input = document.getElementById('searchInput');
+      const atual = input.value.trim();
+      const jaTem = normalize(atual).includes(normalize(tok));
+      if(!jaTem) input.value = (atual + ' ' + tok).trim();
+      executarBusca();
+      input.focus();
+      return;
+    }
     const btn = e.target.closest('[data-action]');
     if(!btn) return;
     const action = btn.dataset.action;
@@ -679,148 +1011,173 @@ Verificar vela de ignição..."></textarea>
       if(eliminados.has(id)) eliminados.delete(id); else eliminados.add(id);
       executarBusca();
     }
-    else if(action==='editar'){ editarCaso(id); }
+    else if(action==='editar'){ abrirModalEdicao(id); }
     else if(action==='excluir'){ excluirCaso(id); }
-    else if(action==='sucesso'){ registrarSucesso(id); }
+    else if(action==='confirmar'){ confirmarCaso(id); }
+    else if(action==='diferenciador-sim' || action==='diferenciador-nao'){
+      const idx = Number(btn.dataset.idx);
+      if(!respostasDiferenciadores.has(id)) respostasDiferenciadores.set(id, new Map());
+      respostasDiferenciadores.get(id).set(idx, action==='diferenciador-sim' ? 'sim' : 'nao');
+      executarBusca();
+    }
   });
 
-  /* ---------------- Feedback Bayesiano (Sucesso) ---------------- */
-  async function registrarSucesso(id){
-      const entry = allEntries.find(e=> e.id===id);
-      if(!entry) return;
-      entry.sucessos = (entry.sucessos || 0) + 1;
-      await dbPut(entry);
-      await refreshCache();
-      fecharModal();
-      showToast('Inteligência Bayesiana atualizada! Este caso agora tem mais peso nas buscas.', 'ok');
-      executarBusca();
+  async function confirmarCaso(id){
+    const entry = allEntries.find(e=>e.id===id);
+    if(!entry) return;
+    entry.confirmacoes = (entry.confirmacoes||0)+1;
+    await dbPut(STORE_CASOS, entry);
+    await refreshCache();
+    if(document.getElementById('modalOverlay').classList.contains('open')) abrirModal(id);
+    executarBusca();
+    renderGerenciar();
+    showToast('Confirmado! Esse caso ganha um pouco mais de peso nas próximas buscas.', 'ok');
   }
 
-  /* ---------------- Modal ---------------- */
+  /* ---------------- Modal: visualizar ---------------- */
   function escapeHtmlKeepBreaks(str){ return escapeHtml(str).replace(/\n/g, '<br>'); }
 
   function abrirModal(id){
     const entry = allEntries.find(e=> e.id===id);
     if(!entry) return;
-    const tokens = tokenize(document.getElementById('searchInput').value);
+    const tokens = termosParaDestaque(document.getElementById('searchInput').value);
+    const conf = entry.confirmacoes||0;
     document.getElementById('modalBody').innerHTML = `
       <div class="modal-header">
         <span class="badge">${escapeHtml(entry.categoria || 'sem categoria')}</span>
         <h2>${escapeHtml(entry.titulo)}</h2>
         <div class="modal-tags">${(entry.tags||[]).map(t=>`<span class="tag">#${escapeHtml(t)}</span>`).join('')}</div>
-        <div class="modal-date">🕒 adicionado em ${formatDate(entry.dataAdicao)}</div>
+        <div class="modal-date">🕒 adicionado em ${formatDate(entry.dataAdicao)}${conf>0?' · ✅ confirmado '+conf+'x':''}</div>
       </div>
       <div class="modal-causas">${destacarTermos(escapeHtmlKeepBreaks(entry.causas), tokens)}</div>
-      
-      <button class="btn-success" data-action="sucesso" data-id="${entry.id}">
-        ✅ A solução foi esta! (Ensinar o algoritmo)
-      </button>
-
+      ${entry.diferenciadores && entry.diferenciadores.length ? '<div style="margin-top:18px; border-top:1px solid var(--border); padding-top:14px;">'+renderDiferenciadoresBox(entry)+'</div>' : ''}
       <div class="modal-actions">
+        <button data-action="confirmar" data-id="${entry.id}" style="color:var(--success); border-color:var(--success-soft);">✅ Foi esse o problema</button>
         <button data-action="editar" data-id="${entry.id}">✏️ Editar</button>
         <button data-action="excluir" data-id="${entry.id}" class="danger">🗑️ Excluir</button>
       </div>
     `;
     document.getElementById('modalOverlay').classList.add('open');
   }
+
+  /* ---------------- Modal: editar ---------------- */
+  function renderDifListEdicao(){
+    const box = document.getElementById('difList');
+    if(!box) return;
+    if(difEditandoAtual.length===0){ box.innerHTML = '<p class="hint" style="margin:6px 0;">Nenhum diferenciador ainda.</p>'; return; }
+    box.innerHTML = difEditandoAtual.map((d,i)=> `
+      <div class="dif-edit-row">
+        <input type="text" class="dif-pergunta-input" data-idx="${i}" value="${escapeHtml(d.pergunta||'')}" placeholder="Ex: Só falha em marcha lenta?">
+        <select class="dif-intensidade-input" data-idx="${i}">
+          <option value="pouco" ${d.intensidade==='pouco'?'selected':''}>Efeito leve</option>
+          <option value="medio" ${(!d.intensidade||d.intensidade==='medio')?'selected':''}>Efeito médio</option>
+          <option value="muito" ${d.intensidade==='muito'?'selected':''}>Efeito forte</option>
+        </select>
+        <button type="button" class="dif-remove-btn" data-idx="${i}">🗑️</button>
+      </div>`).join('');
+    box.querySelectorAll('.dif-pergunta-input').forEach(inp=> inp.addEventListener('input', ev=>{
+      difEditandoAtual[Number(ev.target.dataset.idx)].pergunta = ev.target.value;
+    }));
+    box.querySelectorAll('.dif-intensidade-input').forEach(sel=> sel.addEventListener('change', ev=>{
+      difEditandoAtual[Number(ev.target.dataset.idx)].intensidade = ev.target.value;
+    }));
+    box.querySelectorAll('.dif-remove-btn').forEach(btn=> btn.addEventListener('click', ev=>{
+      difEditandoAtual.splice(Number(ev.target.dataset.idx),1);
+      renderDifListEdicao();
+    }));
+  }
+
+  function abrirModalEdicao(id){
+    const entry = allEntries.find(e=> e.id===id);
+    if(!entry) return;
+    difEditandoAtual = (entry.diferenciadores||[]).map(d=>({...d}));
+    document.getElementById('modalBody').innerHTML = `
+      <div class="modal-header"><h2>✏️ Editar caso</h2></div>
+      <form id="formEditar" data-id="${entry.id}">
+        <label for="eTitulo">Título</label>
+        <input id="eTitulo" type="text" value="${escapeHtml(entry.titulo)}" required>
+        <label for="eCategoria">Categoria / modelo</label>
+        <input id="eCategoria" type="text" list="categoriasList" value="${escapeHtml(entry.categoria||'')}">
+        <label for="eTags">Tags (separadas por vírgula)</label>
+        <input id="eTags" type="text" value="${escapeHtml((entry.tags||[]).join(', '))}">
+        <!-- NOVO CAMPO: Sintoma Capital -->
+        <label for="eCapitais" style="color:var(--danger);">🚨 Sintoma Capital / Prova Cabal (Opcional)</label>
+        <p class="hint" style="margin-top:-6px;">Se o cliente falar essa palavra/frase, o diagnóstico é praticamente 100% este.</p>
+        <input id="eCapitais" type="text" value="${escapeHtml(entry.sintomasCapitais||'')}">
+        <!-- O NOVO SINTOMA EXCLUDENTE -->
+        <label for="eExcludente" style="color:var(--accent-2);">🔪 Sintoma Excludente (O que anula este defeito)</label>
+        <p class="hint" style="margin-top:-6px;">Se o cliente relatar isto, é impossível que seja este defeito.</p>
+        <input id="eExcludente" type="text" value="${escapeHtml(entry.sintomasExcludentes||'')}">
+
+        <label for="eCausas">Causas prováveis</label>
+        <textarea id="eCausas" style="min-height:200px;" required>${escapeHtml(entry.causas)}</textarea>
+        <label>Diferenciadores (opcional)</label>
+        <p class="hint" style="margin-top:-6px;">Perguntas Sim/Não que ajudam a distinguir este caso de outros parecidos durante a busca.</p>
+        <div id="difList"></div>
+        <button type="button" id="btnAddDif" class="btn-secondary" style="margin-top:2px;">+ Adicionar pergunta diferenciadora</button>
+        <div class="modal-actions">
+          <button type="submit" class="btn-primary" style="flex:1 1 45%;">💾 Salvar alterações</button>
+          <button type="button" id="btnCancelarEdicaoModal" class="btn-secondary" style="flex:1 1 45%;">Cancelar</button>
+        </div>
+      </form>
+    `;
+    renderDifListEdicao();
+    document.getElementById('btnAddDif').addEventListener('click', ()=>{
+      difEditandoAtual.push({ pergunta:'', intensidade:'medio' });
+      renderDifListEdicao();
+    });
+    document.getElementById('modalOverlay').classList.add('open');
+    document.getElementById('btnCancelarEdicaoModal').addEventListener('click', fecharModal);
+  }
+
+  document.addEventListener('submit', async (e)=>{
+    if(e.target && e.target.id==='formEditar'){
+      e.preventDefault();
+      const id = Number(e.target.dataset.id);
+      const titulo = document.getElementById('eTitulo').value.trim();
+      const categoria = document.getElementById('eCategoria').value.trim();
+      // sintonma capital e sintoma excludente para ser salvo junto com os outros campos
+      const sintomasCapitais = document.getElementById('eCapitais') ? document.getElementById('eCapitais').value.trim() : '';
+      const sintomasExcludentes = document.getElementById('eExcludente') ? document.getElementById('eExcludente').value.trim() : '';
+      
+      const tags = document.getElementById('eTags').value.split(',').map(t=>t.trim()).filter(Boolean);
+      const causas = document.getElementById('eCausas').value.trim();
+      if(!titulo || !causas){ showToast('Preencha título e causas.', 'erro'); return; }
+      const original = allEntries.find(x=>x.id===id) || {};
+      const diferenciadores = difEditandoAtual
+        .filter(d=> d.pergunta && d.pergunta.trim())
+        .map(d=>{
+          const intens = d.intensidade || 'medio';
+          const par = INTENSIDADES[intens] || INTENSIDADES.medio;
+          return { pergunta: d.pergunta.trim(), intensidade: intens, logSim: par[0], logNao: par[1] };
+        });
+      // E atualize a linha do dbPut para enviar a novidade:
+      await dbPut(STORE_CASOS, { 
+         id, titulo, categoria, tags, causas, 
+         sintomasCapitais, sintomasExcludentes, // <-- Adicionado aqui!
+         dataAdicao: original.dataAdicao||Date.now(), 
+         confirmacoes: original.confirmacoes||0, 
+         diferenciadores 
+      });
+      fecharModal();
+      await refreshCache();
+      executarBusca();
+      renderGerenciar();
+      showToast('Caso atualizado.', 'ok');
+    }
+  });
+
   document.getElementById('modalClose').addEventListener('click', fecharModal);
   document.getElementById('modalOverlay').addEventListener('click', (e)=>{
     if(e.target.id==='modalOverlay') fecharModal();
   });
   function fecharModal(){ document.getElementById('modalOverlay').classList.remove('open'); }
 
-  /* ---------------- Adicionar: Inteligente (NLP) ---------------- */
-  document.getElementById('btnSmartAdd').addEventListener('click', async ()=>{
-      const texto = document.getElementById('fTextoLivre').value.trim();
-      if(!texto){ showToast('Cole algum texto primeiro!', 'erro'); return; }
-
-      const words = tokenize(texto).filter(w => !stopWords.includes(w));
-      const frequencia = {};
-      words.forEach(w => frequencia[w] = (frequencia[w] || 0) + 1);
-      const tagsSugeridas = Object.keys(frequencia).sort((a,b)=> frequencia[b]-frequencia[a]).slice(0, 6);
-
-      const categoriasExistentes = Array.from(new Set(allEntries.map(e=> e.categoria).filter(Boolean)));
-      let categoriaSugerida = "";
-      for(let cat of categoriasExistentes){
-          if(normalize(texto).includes(normalize(cat))){ categoriaSugerida = cat; break; }
-      }
-
-      let tituloSugerido = texto.split('\n')[0].substring(0, 50);
-      if(tituloSugerido.length === 50) tituloSugerido += "...";
-
-      await dbAdd({ 
-          titulo: tituloSugerido, 
-          categoria: categoriaSugerida, 
-          tags: tagsSugeridas, 
-          causas: texto, 
-          dataAdicao: Date.now(),
-          sucessos: 0 
-      });
-
-      document.getElementById('fTextoLivre').value = '';
-      await refreshCache();
-      renderGerenciar();
-      showToast('Caso extraído e categorizado com sucesso via NLP!', 'ok');
-  });
-
-
-  /* ---------------- Adicionar: caso único ---------------- */
-  const formSingle = document.getElementById('formSingle');
-  formSingle.addEventListener('submit', async (e)=>{
-    e.preventDefault();
-    const titulo = document.getElementById('fTitulo').value.trim();
-    const categoria = document.getElementById('fCategoria').value.trim();
-    const tags = document.getElementById('fTags').value.split(',').map(t=>t.trim()).filter(Boolean);
-    const causas = document.getElementById('fCausas').value.trim();
-    if(!titulo || !causas){ showToast('Preencha pelo menos o título e as causas prováveis.', 'erro'); return; }
-    const editingId = formSingle.dataset.editingId;
-    try{
-      if(editingId){
-        // Preserva o numero de sucessos se estiver editando
-        const entryAntiga = allEntries.find(x => x.id === Number(editingId));
-        await dbPut({ id:Number(editingId), titulo, categoria, tags, causas, dataAdicao: Number(formSingle.dataset.editingDate) || Date.now(), sucessos: entryAntiga ? entryAntiga.sucessos : 0 });
-        showToast('Caso atualizado com sucesso.', 'ok');
-      } else {
-        await dbAdd({ titulo, categoria, tags, causas, dataAdicao: Date.now(), sucessos: 0 });
-        showToast('Caso adicionado ao banco de dados.', 'ok');
-      }
-      cancelarEdicao();
-      await refreshCache();
-      renderGerenciar();
-    }catch(err){
-      showToast('Erro ao salvar: '+err.message, 'erro');
-    }
-  });
-  function cancelarEdicao(){
-    formSingle.reset();
-    delete formSingle.dataset.editingId;
-    delete formSingle.dataset.editingDate;
-    document.getElementById('btnSubmitSingle').textContent = '💾 Salvar caso';
-    document.getElementById('btnCancelEdit').style.display = 'none';
-  }
-  document.getElementById('btnCancelEdit').addEventListener('click', cancelarEdicao);
-
-  function editarCaso(id){
-    const entry = allEntries.find(e=> e.id===id);
-    if(!entry) return;
-    fecharModal();
-    mudarAba('adicionar');
-    document.getElementById('fTitulo').value = entry.titulo;
-    document.getElementById('fCategoria').value = entry.categoria || '';
-    document.getElementById('fTags').value = (entry.tags||[]).join(', ');
-    document.getElementById('fCausas').value = entry.causas;
-    formSingle.dataset.editingId = entry.id;
-    formSingle.dataset.editingDate = entry.dataAdicao || Date.now();
-    document.getElementById('btnSubmitSingle').textContent = '💾 Salvar alterações';
-    document.getElementById('btnCancelEdit').style.display = 'inline-block';
-    document.getElementById('fTitulo').scrollIntoView({behavior:'smooth', block:'center'});
-  }
-
   async function excluirCaso(id){
     const entry = allEntries.find(e=> e.id===id);
     if(!entry) return;
     if(!confirm('Excluir o caso "'+entry.titulo+'"? Essa ação não pode ser desfeita.')) return;
-    await dbDelete(id);
+    await dbDelete(STORE_CASOS, id);
     fecharModal();
     await refreshCache();
     executarBusca();
@@ -828,12 +1185,17 @@ Verificar vela de ignição..."></textarea>
     showToast('Caso excluído.', 'ok');
   }
 
-  /* ---------------- Adicionar: importação em massa ---------------- */
-  function parseBulkText(text, categoriaPadrao){
+  /* ---------------- Adicionar rápido ---------------- */
+  function tituloAutomatico(bloco){
+    const flat = bloco.replace(/\s+/g,' ').trim();
+    return flat.length>60 ? flat.slice(0,60).trim()+'…' : (flat || 'Caso sem título');
+  }
+
+  function parseQuickText(text, categoriaPadrao){
     const blocks = text.split(/^[ \t]*-{3,}[ \t]*$/m).map(b=>b.trim()).filter(Boolean);
     return blocks.map(block=>{
       const lines = block.split('\n').map(l=>l.trim());
-      let titulo = (lines[0]||'').replace(/^#+\s*/,'').trim();
+      let tituloBruto = (lines[0]||'').replace(/^#+\s*/,'').trim();
       let categoria = categoriaPadrao || '';
       let tags = [];
       let idx = 1;
@@ -843,39 +1205,45 @@ Verificar vela de ignição..."></textarea>
         if(lines[idx]===''){ idx++; continue; }
         break;
       }
-      const causas = lines.slice(idx).join('\n').trim();
+      let causas = lines.slice(idx).join('\n').trim();
+      if(!causas){ causas = tituloBruto; }
+      const titulo = tituloBruto.length>90 ? tituloBruto.slice(0,90).trim()+'…' : (tituloBruto || tituloAutomatico(causas));
       return { titulo, categoria, tags, causas };
-    }).filter(b=> b.titulo && b.causas);
+    }).filter(b=> b.causas);
   }
 
-  document.getElementById('btnParsePreview').addEventListener('click', ()=>{
-    const text = document.getElementById('bulkText').value;
-    const catPadrao = document.getElementById('bulkCategoriaPadrao').value.trim();
-    const parsed = parseBulkText(text, catPadrao);
-    const prev = document.getElementById('bulkPreview');
-    if(parsed.length===0){
-      prev.innerHTML = '<p class="empty" style="padding:14px;">Nada reconhecido. Verifique o formato do texto colado.</p>';
-      return;
-    }
-    prev.innerHTML = '<p class="hint" style="margin-bottom:8px;">'+parsed.length+' caso(s) detectado(s):</p>' +
+  document.getElementById('toggleAvancado').addEventListener('click', ()=>{
+    const box = document.getElementById('avancadoBox');
+    box.style.display = box.style.display==='none' ? 'block' : 'none';
+  });
+  document.getElementById('toggleInfo').addEventListener('click', ()=>{
+    const el = document.getElementById('infoBayes');
+    el.style.display = el.style.display==='none' ? 'block' : 'none';
+  });
+
+  document.getElementById('btnQuickPreview').addEventListener('click', ()=>{
+    const text = document.getElementById('quickText').value;
+    const catPadrao = document.getElementById('quickCategoriaPadrao').value.trim();
+    const parsed = parseQuickText(text, catPadrao);
+    const prev = document.getElementById('quickPreview');
+    if(parsed.length===0){ prev.innerHTML = '<p class="empty" style="padding:14px;">Cole algum texto para pré-visualizar.</p>'; return; }
+    prev.innerHTML = '<p class="hint" style="margin:12px 0 8px;">'+parsed.length+' caso(s) detectado(s):</p>' +
       parsed.map(b=> `<div class="preview-item"><b>${escapeHtml(b.titulo)}</b><div class="pi-meta">${escapeHtml(b.categoria||'sem categoria')} · ${b.causas.length} caracteres${b.tags.length? ' · tags: '+escapeHtml(b.tags.join(', ')) : ''}</div></div>`).join('');
   });
 
-  document.getElementById('btnBulkImport').addEventListener('click', async ()=>{
-    const text = document.getElementById('bulkText').value;
-    const catPadrao = document.getElementById('bulkCategoriaPadrao').value.trim();
-    const parsed = parseBulkText(text, catPadrao);
-    if(parsed.length===0){ showToast('Nenhum caso reconhecido no texto colado.', 'erro'); return; }
-    let count = 0;
+  document.getElementById('btnQuickSave').addEventListener('click', async ()=>{
+    const text = document.getElementById('quickText').value;
+    const catPadrao = document.getElementById('quickCategoriaPadrao').value.trim();
+    const parsed = parseQuickText(text, catPadrao);
+    if(parsed.length===0){ showToast('Cole algum texto antes de salvar.', 'erro'); return; }
     for(const item of parsed){
-      await dbAdd({ titulo:item.titulo, categoria:item.categoria, tags:item.tags, causas:item.causas, dataAdicao: Date.now(), sucessos:0 });
-      count++;
+      await dbAdd(STORE_CASOS, { titulo:item.titulo, categoria:item.categoria, tags:item.tags, causas:item.causas, dataAdicao: Date.now(), confirmacoes:0, diferenciadores:[] });
     }
     await refreshCache();
     renderGerenciar();
-    document.getElementById('bulkText').value = '';
-    document.getElementById('bulkPreview').innerHTML = '';
-    showToast(count+' caso(s) importado(s) com sucesso.', 'ok');
+    document.getElementById('quickText').value = '';
+    document.getElementById('quickPreview').innerHTML = '';
+    showToast(parsed.length+' caso(s) salvo(s) no banco.', 'ok');
   });
 
   /* ---------------- Gerenciar ---------------- */
@@ -894,6 +1262,8 @@ Verificar vela de ignição..."></textarea>
           <strong>${escapeHtml(e.titulo)}</strong>
           <span class="badge">${escapeHtml(e.categoria || 'sem categoria')}</span>
           <span class="manage-date">${formatDate(e.dataAdicao)}</span>
+          ${e.confirmacoes ? `<span class="conf-badge" style="margin-top:0;">✅ ${e.confirmacoes}x</span>` : ''}
+          ${e.diferenciadores && e.diferenciadores.length ? `<span class="dif-count-badge">🔬 ${e.diferenciadores.length}</span>` : ''}
         </div>
         <div class="manage-item-actions">
           <button data-action="ver" data-id="${e.id}" title="Ver">👁️</button>
@@ -915,7 +1285,51 @@ Verificar vela de ignição..."></textarea>
   }
   document.getElementById('manageSearch').addEventListener('input', debounce(()=>{ manageLimit=150; renderGerenciar(); }, 150));
   document.getElementById('manageCategoria').addEventListener('change', ()=>{ manageLimit=150; renderGerenciar(); });
+/* ---------------- O Efeito Sherlock ---------------- */
+  document.getElementById('btnInvestigar').addEventListener('click', ()=>{
+    const box = document.getElementById('sherlockResultados');
+    box.innerHTML = '<p class="hint">Processando matriz de co-ocorrência...</p>';
+    
+    setTimeout(() => {
+      const coOcorrencias = {};
+      let totalConexoes = 0;
 
+      allEntries.forEach(e => {
+        // Cruza as tags de cada caso para achar padrões
+        const tags = (e.tags || []).map(t => escapeHtml(t.trim().toUpperCase()));
+        if (e.categoria) tags.push(escapeHtml(e.categoria.toUpperCase())); // Mistura categoria também
+
+        for(let i = 0; i < tags.length; i++){
+          for(let j = i + 1; j < tags.length; j++){
+            if(tags[i] === tags[j]) continue;
+            // Cria um par único organizado em ordem alfabética
+            const par = [tags[i], tags[j]].sort().join(' 🔗 ');
+            coOcorrencias[par] = (coOcorrencias[par] || 0) + (1 + (e.confirmacoes || 0) * 0.5); // Casos confirmados pesam mais!
+            totalConexoes++;
+          }
+        }
+      });
+
+      const paresOrdenados = Object.entries(coOcorrencias).sort((a,b) => b[1] - a[1]);
+      const topPares = paresOrdenados.filter(p => p[1] >= 2).slice(0, 10); // Pega os 10 padrões mais fortes
+
+      if(topPares.length === 0){
+        box.innerHTML = '<div class="empty">Poucos dados cruzados. Adicione mais Tags e Categorias nos seus casos para gerar padrões!</div>';
+        return;
+      }
+
+      box.innerHTML = topPares.map((p, index) => {
+        const termos = p[0].split(' 🔗 ');
+        return `
+        <div class="dif-item" style="border-left: 4px solid var(--accent); padding-left:14px; background:var(--card);">
+          <div style="font-size: 13.5px;">
+            <b>Padrão #${index + 1}:</b> Alta incidência conjunta entre <span class="badge">${termos[0]}</span> e <span class="badge">${termos[1]}</span>.
+          </div>
+          <div style="font-size: 11.5px; color: var(--text-faint); margin-top: 4px;">Sempre que suspeitar de um, investigue o outro.</div>
+        </div>`;
+      }).join('');
+    }, 300); // Um pequeno delay para dar a sensação de processamento de IA
+  });
   /* ---------------- Categorias / stats ---------------- */
   function popularFiltrosCategoria(){
     const cats = Array.from(new Set(allEntries.map(e=> e.categoria).filter(Boolean))).sort((a,b)=> a.localeCompare(b,'pt-BR'));
@@ -932,11 +1346,56 @@ Verificar vela de ignição..."></textarea>
     document.getElementById('statsMini').innerHTML = `<b>${totalCasos}</b> caso(s)<br><b>${totalCats}</b> categoria(s)`;
   }
 
+  /* ---------------- Sinônimos: gerenciamento ---------------- */
+  function renderSinonimosList(){
+    const box = document.getElementById('sinonimosList');
+    if(sinonimos.length===0){
+      box.innerHTML = '<p class="hint" style="margin:10px 0;">Nenhum grupo cadastrado ainda.</p>';
+      return;
+    }
+    box.innerHTML = sinonimos.map((g,i)=> `
+      <div class="sin-group" data-idx="${i}">
+        <textarea class="sin-textarea" data-idx="${i}" placeholder="uma frase por linha, a primeira vira a forma principal">${escapeHtml([g.canonico, ...(g.variantes||[])].join('\n'))}</textarea>
+        <button type="button" class="sin-remove-btn" data-idx="${i}">🗑️ Remover grupo</button>
+      </div>`).join('');
+    box.querySelectorAll('.sin-remove-btn').forEach(btn=> btn.addEventListener('click', async (ev)=>{
+      const idx = Number(ev.target.dataset.idx);
+      const grupo = sinonimos[idx];
+      if(grupo && grupo.id) await dbDelete(STORE_SINONIMOS, grupo.id);
+      await carregarSinonimos();
+      renderSinonimosList();
+      await refreshCache();
+      executarBusca();
+      showToast('Grupo de sinônimos removido.', 'ok');
+    }));
+    box.querySelectorAll('.sin-textarea').forEach(ta=>{
+      ta.addEventListener('change', async (ev)=>{
+        const idx = Number(ev.target.dataset.idx);
+        const linhas = ev.target.value.split('\n').map(l=>l.trim()).filter(Boolean);
+        if(linhas.length===0) return;
+        const grupo = sinonimos[idx];
+        const registro = { canonico: linhas[0], variantes: linhas.slice(1) };
+        if(grupo && grupo.id){ registro.id = grupo.id; await dbPut(STORE_SINONIMOS, registro); }
+        else { await dbAdd(STORE_SINONIMOS, registro); }
+        await carregarSinonimos();
+        renderSinonimosList();
+        await refreshCache();
+        executarBusca();
+        showToast('Sinônimos atualizados.', 'ok');
+      });
+    });
+  }
+  document.getElementById('btnAddSinonimo').addEventListener('click', ()=>{
+    sinonimos.push({ canonico:'', variantes:[] });
+    renderSinonimosList();
+  });
+
   /* ---------------- Exportar / Importar JSON ---------------- */
   document.getElementById('btnExport').addEventListener('click', async ()=>{
-    const dados = await dbGetAll();
-    if(dados.length===0){ showToast('O banco de dados está vazio.', 'erro'); return; }
-    const payload = { app:'DiagnosticoMestre', versao:DB_VERSION, exportadoEm:new Date().toISOString(), total:dados.length, casos:dados };
+    const dados = await dbGetAll(STORE_CASOS);
+    const sins = await dbGetAll(STORE_SINONIMOS);
+    if(dados.length===0 && sins.length===0){ showToast('O banco de dados está vazio.', 'erro'); return; }
+    const payload = { app:'DiagnosticoMestre', versao:3, exportadoEm:new Date().toISOString(), total:dados.length, casos:dados, sinonimos:sins };
     const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -944,7 +1403,7 @@ Verificar vela de ignição..."></textarea>
     a.download = 'diagnostico-mestre-backup-'+new Date().toISOString().slice(0,10)+'.json';
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
-    showToast('Backup exportado: '+dados.length+' caso(s).', 'ok');
+    showToast('Backup exportado: '+dados.length+' caso(s), '+sins.length+' grupo(s) de sinônimos.', 'ok');
   });
 
   document.getElementById('btnImportFile').addEventListener('click', async ()=>{
@@ -955,7 +1414,9 @@ Verificar vela de ignição..."></textarea>
       const text = await file.text();
       const json = JSON.parse(text);
       const casos = Array.isArray(json) ? json : (json.casos || []);
-      if(!Array.isArray(casos) || casos.length===0){ showToast('Nenhum caso encontrado no arquivo.', 'erro'); return; }
+      const sinsImportar = Array.isArray(json.sinonimos) ? json.sinonimos : [];
+      if(casos.length===0 && sinsImportar.length===0){ showToast('Nenhum caso encontrado no arquivo.', 'erro'); return; }
+
       const existentes = new Set(allEntries.map(e=> normalize(e.titulo)+'|'+normalize(e.categoria||'')));
       let importados=0, ignorados=0;
       for(const c of casos){
@@ -963,19 +1424,34 @@ Verificar vela de ignição..."></textarea>
         const key = normalize(c.titulo)+'|'+normalize(c.categoria||'');
         if(existentes.has(key)){ ignorados++; continue; }
         existentes.add(key);
-        await dbAdd({
+        await dbAdd(STORE_CASOS, {
           titulo: String(c.titulo),
           categoria: c.categoria ? String(c.categoria) : '',
           tags: Array.isArray(c.tags) ? c.tags : (c.tags ? String(c.tags).split(',').map(t=>t.trim()).filter(Boolean) : []),
           causas: String(c.causas),
           dataAdicao: c.dataAdicao || Date.now(),
-          sucessos: c.sucessos || 0 // Suporta importação mantendo a "Inteligência"
+          confirmacoes: Number(c.confirmacoes)||0,
+          diferenciadores: Array.isArray(c.diferenciadores) ? c.diferenciadores : []
         });
         importados++;
       }
+
+      const canonicosExistentes = new Set(sinonimos.map(g=> normalize(g.canonico)));
+      let sinImportados = 0;
+      for(const g of sinsImportar){
+        if(!g || !g.canonico) continue;
+        const key = normalize(g.canonico);
+        if(canonicosExistentes.has(key)) continue;
+        canonicosExistentes.add(key);
+        await dbAdd(STORE_SINONIMOS, { canonico: String(g.canonico), variantes: Array.isArray(g.variantes) ? g.variantes.map(String) : [] });
+        sinImportados++;
+      }
+
+      await carregarSinonimos();
       await refreshCache();
       renderGerenciar();
-      document.getElementById('importResult').textContent = '✅ '+importados+' caso(s) importado(s).' + (ignorados? ' '+ignorados+' ignorado(s) (duplicado ou incompleto).' : '');
+      renderSinonimosList();
+      document.getElementById('importResult').textContent = '✅ '+importados+' caso(s)'+(sinImportados? ' e '+sinImportados+' grupo(s) de sinônimos':'')+' importado(s).' + (ignorados? ' '+ignorados+' caso(s) ignorado(s) (duplicado ou incompleto).' : '');
       showToast(importados+' caso(s) importado(s).', 'ok');
       fileInput.value = '';
     }catch(err){
@@ -984,15 +1460,18 @@ Verificar vela de ignição..."></textarea>
   });
 
   document.getElementById('btnClearAll').addEventListener('click', async ()=>{
-    if(allEntries.length===0){ showToast('O banco já está vazio.', 'erro'); return; }
-    if(!confirm('Isso vai apagar TODOS os '+allEntries.length+' casos do banco de dados. Essa ação NÃO pode ser desfeita. Recomendado: exporte um backup antes. Continuar?')) return;
+    if(allEntries.length===0 && sinonimos.length===0){ showToast('O banco já está vazio.', 'erro'); return; }
+    if(!confirm('Isso vai apagar TODOS os '+allEntries.length+' casos e os grupos de sinônimos deste banco de dados. Essa ação NÃO pode ser desfeita. Recomendado: exporte um backup antes. Continuar?')) return;
     const confirmacao = prompt('Para confirmar, digite APAGAR em maiúsculas:');
     if(confirmacao !== 'APAGAR'){ showToast('Operação cancelada.', ''); return; }
-    await dbClear();
+    await dbClear(STORE_CASOS);
+    await dbClear(STORE_SINONIMOS);
     localStorage.setItem('dm_seeded', '1');
+    await carregarSinonimos();
     await refreshCache();
     executarBusca();
     renderGerenciar();
+    renderSinonimosList();
     showToast('Banco de dados apagado.', 'ok');
   });
 
@@ -1001,6 +1480,7 @@ Verificar vela de ignição..."></textarea>
     document.querySelectorAll('.tab-btn').forEach(b=> b.classList.toggle('active', b.dataset.tab===nome));
     document.querySelectorAll('.tab-panel').forEach(p=> p.classList.toggle('active', p.id==='tab-'+nome));
     if(nome==='gerenciar') renderGerenciar();
+    if(nome==='dados') renderSinonimosList();
     window.scrollTo({top:0, behavior:'instant'});
   }
   document.getElementById('tabs').addEventListener('click', (e)=>{
@@ -1029,7 +1509,7 @@ Verificar vela de ignição..."></textarea>
   async function seedExemplos(){
     if(localStorage.getItem('dm_seeded')) return;
     localStorage.setItem('dm_seeded', '1');
-    const atuais = await dbGetAll();
+    const atuais = await dbGetAll(STORE_CASOS);
     if(atuais.length>0) return;
     const exemplos = [
       {
@@ -1038,7 +1518,10 @@ Verificar vela de ignição..."></textarea>
         tags: ['partida','sensor de agua','MAG','chicote','curto'],
         causas: 'Caso de exemplo, só para mostrar o formato do banco. Edite ou substitua pelos seus próprios casos reais.\n\nPossíveis causas a investigar quando o aparelho funciona normalmente fora da água mas falha ou morre ao entrar na água:\n\n1. Conector do chicote elétrico próximo à popa com corrosão ou trinca, causando curto ao contato com água.\n2. Sensor de presença de água (MAG/OBS) desregulado ou com mau contato.\n3. Capa de vela ou bobina de ignição rachada, permitindo entrada de água e fuga de faísca.\n4. Chave de segurança (lanyard) ou botão de parada com infiltração, fechando o circuito de corte ao molhar.\n5. Aterramento (massa) do motor oxidado, criando caminho de curto quando úmido.\n\nOrdem sugerida de investigação: testar cada conector com multímetro em ambiente seco e depois borrifando água, isolando o ponto exato do curto antes de trocar peças.',
         dataAdicao: Date.now(),
-        sucessos: 0
+        confirmacoes: 0,
+        diferenciadores: [
+          { pergunta: 'O motor chega a tentar girar mesmo sem pegar?', intensidade:'medio', logSim:0.9, logNao:-0.9 }
+        ]
       },
       {
         titulo: '[EXEMPLO] Moto Honda 150cc não pega a frio, mas pega bem morna',
@@ -1046,10 +1529,16 @@ Verificar vela de ignição..."></textarea>
         tags: ['partida a frio','carburador','vela','bateria','CDI'],
         causas: 'Caso de exemplo — substitua pelos seus próprios diagnósticos.\n\nCausas mais comuns quando a moto tem dificuldade de dar partida a frio mas funciona normalmente após aquecer:\n\n1. Afogador/choke não vedando corretamente ou cabo desregulado.\n2. Vela de ignição com folga incorreta ou desgastada, perdendo força a frio.\n3. Bateria fraca não sustentando a rotação de partida por tempo suficiente.\n4. Jet de agulha do carburador desregulado, misturando pobre demais a frio.\n5. CDI ou bobina de ignição perdendo faísca em baixa rotação/temperatura.\n\nSugestão: testar centelha a frio, verificar tensão da bateria sob carga, e revisar regulagem do afogador antes de desmontar o carburador.',
         dataAdicao: Date.now()+1,
-        sucessos: 0
+        confirmacoes: 0,
+        diferenciadores: []
       }
     ];
-    for(const ex of exemplos) await dbAdd(ex);
+    for(const ex of exemplos) await dbAdd(STORE_CASOS, ex);
+
+    const sinsExemplo = [
+      { canonico: 'nao liga', variantes: ['nao pega', 'nao da partida', 'nao arranca'] }
+    ];
+    for(const s of sinsExemplo) await dbAdd(STORE_SINONIMOS, s);
   }
 
   function mostrarErroFatal(msg){
@@ -1071,8 +1560,10 @@ Verificar vela de ignição..."></textarea>
     }
     try{
       await seedExemplos();
+      await carregarSinonimos();
       await refreshCache();
       renderGerenciar();
+      renderSinonimosList();
       document.getElementById('searchInput').focus();
     }catch(err){
       showToast('Aviso: '+(err && err.message ? err.message : err), 'erro');
