@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="theme-color" content="#0d0f13">
+<title>Diagnóstico Mestre — Banco de Causas</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📑</text></svg>">
+<style>
+    :root {
+      --bg: #0d0f13;
+      --bg-alt: #12151b;
+      --panel: #171b23;
+      --card: #1a1f28;
+      --card-hover: #232a37;
+      --border: #2a3040;
+      --text: #e8eaed;
+      --text-dim: #9aa3b2;
+      --text-faint: #626a78;
+      --accent: #ff7a29;
+      --accent-soft: rgba(255,122,41,.15);
+      --accent-2: #4fa8e0;
+      --accent-2-soft: rgba(79,168,224,.13);
+      --success: #3ddc84;
+      --success-soft: rgba(61,220,132,.15);
+      --danger: #ff5470;
+      --danger-soft: rgba(255,84,112,.14);
+      --radius: 14px;
+      --radius-sm: 9px;
+      --shadow: 0 6px 20px rgba(0,0,0,.35);
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+    #app { max-width: 1080px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* Header - visual de "ordem de serviço" estampada */
+    header.topbar {
+      position: sticky; top: 0; z-index: 20;
+      display: flex; align-items: center; justify-content: space-between; gap:10px;
+      padding: 16px 20px;
+      background:
+        repeating-linear-gradient(135deg, rgba(255,122,41,.05) 0 12px, transparent 12px 24px),
+        rgba(13,15,19,.92);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+    }
+    .brand { display:flex; align-items:center; gap:12px; }
+    .brand .logo {
+      width:38px; height:38px; border-radius:9px; background: var(--accent-soft); border:1px solid var(--accent);
+      display:flex; align-items:center; justify-content:center; font-size:19px; flex:0 0 auto;
+    }
+    .brand-text h1 { margin:0; font-size:16px; font-weight:800; letter-spacing:.6px; text-transform:uppercase; }
+    .brand-text small { display:block; font-family:var(--mono); font-size:10.5px; color:var(--text-faint); letter-spacing:.3px; margin-top:2px; }
+    #statsMini { font-family: var(--mono); font-size:11.5px; color: var(--text-dim); text-align:right; line-height:1.5; flex:0 0 auto; }
+    #statsMini b { color: var(--accent); font-weight:700; }
+
+    /* Tabs */
+    nav.tabs {
+      position: sticky; top: 71px; z-index: 19;
+      display: flex; gap: 4px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 6px 10px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    nav.tabs::-webkit-scrollbar{ display:none; }
+    .tab-btn {
+      flex: 0 0 auto; display:flex; align-items:center; gap:6px;
+      background: transparent; border: none; color: var(--text-dim);
+      padding: 9px 14px; border-radius: 10px; cursor:pointer;
+      font-size: 13px; font-weight:700; white-space:nowrap; letter-spacing:.2px;
+      transition: background .15s, color .15s; font-family: var(--font);
+    }
+    .tab-btn:hover { background: var(--card-hover); color: var(--text); }
+    .tab-btn.active { background: var(--accent-soft); color: var(--accent); }
+    .tab-icon { font-size:15px; }
+
+    main { flex:1; padding: 20px; padding-bottom: 90px; }
+    .tab-panel { display:none; animation: fadeIn .18s ease; }
+    .tab-panel.active { display:block; }
+    @keyframes fadeIn { from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;} }
+
+    /* Search */
+    .search-bar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
+    #searchInput {
+      flex:1 1 260px; padding:14px 16px; border-radius: var(--radius-sm);
+      border:1px solid var(--border); background:var(--panel); color:var(--text);
+      font-size:15px; outline:none;
+    }
+    #searchInput:focus { border-color: var(--accent); }
+    #filterCategoria {
+      padding:13px 12px; border-radius: var(--radius-sm); border:1px solid var(--border);
+      background:var(--panel); color:var(--text-dim); font-size:13.5px; max-width:210px; font-family:var(--mono);
+    }
+    button { cursor:pointer; font-family: var(--font); }
+    #btnBuscar {
+      padding:14px 22px; border-radius: var(--radius-sm); border:none;
+      background: var(--accent); color:#1a0e02; font-weight:800; font-size:14.5px; letter-spacing:.3px;
+    }
+    #btnBuscar:active { transform: scale(.98); }
+    .search-meta { font-size:12.5px; color:var(--text-dim); margin: 12px 2px 4px; font-family:var(--mono); }
+    .search-hint { font-size:12.5px; color:var(--text-faint); margin: 4px 2px 18px; line-height:1.5; }
+
+    /* Result cards */
+    .results-list { display:flex; flex-direction:column; gap:12px; }
+    .result-card {
+      background:var(--card); border:1px solid var(--border); border-radius: var(--radius);
+      padding:15px 16px; display:flex; gap:13px; transition: border-color .15s, opacity .15s;
+    }
+    .result-card:hover { border-color:#3a4256; }
+    .result-card.eliminado { opacity:.42; }
+    .result-card.eliminado .result-header h4 { text-decoration: line-through; }
+    .result-rank {
+      flex:0 0 auto; width:36px; height:36px; border-radius:50%;
+      background: var(--accent-soft); color:var(--accent); font-weight:800; font-size:13px;
+      display:flex; align-items:center; justify-content:center; border:1px solid var(--accent);
+    }
+    .result-card.eliminado .result-rank { background: var(--danger-soft); color:var(--danger); font-size:15px; border-color:var(--danger); }
+    .result-main { flex:1; min-width:0; }
+    .result-header { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+    .result-header h4 { margin:0; font-size:15.5px; line-height:1.4; font-weight:700; }
+    .badge {
+      flex:0 0 auto; font-family:var(--mono); font-size:10.5px; font-weight:700; color: var(--accent-2);
+      background: var(--accent-2-soft); padding:4px 9px; border-radius:5px; white-space:nowrap; letter-spacing:.3px; text-transform:uppercase;
+    }
+    .badge-success { background: var(--success-soft); color: var(--success); border: 1px solid var(--success); }
+    
+    .prob-bar {
+      position:relative; height:22px; border-radius:6px; margin:10px 0 8px;
+      background: repeating-linear-gradient(90deg, var(--bg-alt) 0, var(--bg-alt) 9%, #1f2530 9%, #1f2530 10%);
+      border:1px solid var(--border); overflow:hidden;
+    }
+    .prob-fill { height:100%; background: linear-gradient(180deg, #ffb066 0%, var(--accent) 55%, #d95f10 100%); position:relative; }
+    .prob-fill::after { content:''; position:absolute; right:0; top:0; bottom:0; width:2px; background:#fff; box-shadow:0 0 8px 1px #fff; }
+    .prob-label {
+      position:absolute; inset:0; display:flex; align-items:center; padding-left:10px;
+      font-size:10.5px; font-weight:800; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,.6); font-family:var(--mono); letter-spacing:.2px;
+    }
+    .snippet { margin:6px 0 0; font-size:13.5px; color:var(--text-dim); line-height:1.55; }
+    .snippet mark, .modal-causas mark { background: var(--accent); color:#1a0e02; padding:0 2px; border-radius:3px; font-weight:700; }
+    .result-actions { flex:0 0 auto; display:flex; flex-direction:column; gap:6px; justify-content:center; }
+    .btn-ver, .btn-descartar {
+      padding:9px 13px; border-radius:8px; border:1px solid var(--border); background:var(--bg-alt);
+      color:var(--text); font-size:12px; font-weight:700; white-space:nowrap;
+    }
+    .btn-ver:hover { border-color: var(--accent-2); color: var(--accent-2); }
+    .btn-descartar:hover { border-color: var(--danger); color: var(--danger); }
+
+    .empty { color: var(--text-faint); font-size:13.5px; padding:36px 14px; text-align:center; line-height:1.6; }
+
+    /* Cards / forms genéricos */
+    .card { background:var(--card); border:1px solid var(--border); border-radius: var(--radius); padding:18px; margin-bottom:16px; }
+    .card.destaque { border-color: var(--accent-2); background: linear-gradient(180deg, rgba(79,168,224,0.05) 0%, var(--card) 100%); }
+    .card h3 { margin:0 0 4px; font-size:14.5px; font-weight:800; text-transform:uppercase; letter-spacing:.4px; }
+    .card .hint { font-size:12.5px; color:var(--text-dim); margin:0 0 12px; line-height:1.6; }
+    .card .hint code { background: var(--bg-alt); padding:1px 6px; border-radius:4px; font-size:11.5px; font-family:var(--mono); color:var(--accent); }
+    .add-grid { display:grid; grid-template-columns: 1fr 1fr; gap:16px; align-items:start; }
+    @media (max-width: 860px){ .add-grid { grid-template-columns: 1fr; } }
+
+    label { display:block; font-size:11.5px; font-weight:700; color:var(--text-dim); margin: 13px 0 6px; text-transform:uppercase; letter-spacing:.3px; }
+    label:first-of-type { margin-top:0; }
+    input[type=text], input:not([type]), textarea, select.full {
+      width:100%; padding:11px 13px; border-radius: var(--radius-sm); border:1px solid var(--border);
+      background: var(--bg-alt); color:var(--text); font-size:14px; outline:none; font-family:var(--font);
+    }
+    input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height:90px; line-height:1.55; }
+    #fCausas { min-height:170px; }
+    #bulkText { min-height:230px; font-family: var(--mono); font-size:12.5px; }
+
+    .form-actions { display:flex; gap:8px; margin-top:16px; }
+    .btn-primary { padding:12px 18px; border-radius: var(--radius-sm); border:none; background: var(--accent); color:#1a0e02; font-weight:800; font-size:13.5px; }
+    .btn-secondary { padding:11px 16px; border-radius: var(--radius-sm); border:1px solid var(--border); background:transparent; color:var(--text-dim); font-weight:700; font-size:13px; }
+    .btn-secondary:hover { color:var(--text); border-color:#3a4256; }
+    .btn-success { background: var(--success); color:#000; padding:12px; border-radius:10px; border:none; font-weight:800; font-size:14px; width: 100%; margin-top: 10px;}
+
+    .bulk-actions { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+    #bulkCategoriaPadrao { flex:1 1 180px; }
+    #bulkPreview { margin-top:14px; display:flex; flex-direction:column; gap:8px; max-height:340px; overflow-y:auto; }
+    .preview-item { background: var(--bg-alt); border:1px solid var(--border); border-radius:9px; padding:10px 12px; font-size:13px; }
+    .preview-item b { color: var(--accent); }
+    .preview-item .pi-meta { color:var(--text-faint); font-size:11.5px; margin-top:3px; font-family:var(--mono); }
+
+    /* Gerenciar */
+    .manage-toolbar { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; align-items:center; }
+    .manage-toolbar input { flex:1 1 200px; }
+    .manage-toolbar select { flex:0 0 auto; max-width:190px; font-family:var(--mono); font-size:12.5px; }
+    #manageCount { font-size:11.5px; color:var(--text-faint); white-space:nowrap; font-family:var(--mono); }
+    .manage-list { display:flex; flex-direction:column; gap:8px; }
+    .manage-item {
+      background:var(--card); border:1px solid var(--border); border-radius:10px;
+      padding:12px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+    }
+    .manage-item-info { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:13.5px; }
+    .manage-date { color:var(--text-faint); font-size:11px; font-family:var(--mono); }
+    .manage-item-actions { display:flex; gap:4px; }
+    .manage-item-actions button {
+      width:33px; height:33px; border-radius:8px; border:1px solid var(--border); background:var(--bg-alt); font-size:14px;
+    }
+    .manage-item-actions button:hover { border-color: var(--accent); }
+
+    /* Dados */
+    .card.danger { border-color: var(--danger-soft); }
+    .card.danger h3 { color: var(--danger); }
+    #importResult { margin-top:10px; font-size:13px; color: var(--success); }
+    input[type=file] { color:var(--text-dim); font-size:13px; }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed; inset:0; background: rgba(5,6,9,.75); backdrop-filter: blur(3px);
+      display:flex; align-items:flex-end; justify-content:center; z-index:100;
+      opacity:0; pointer-events:none; transition: opacity .18s;
+    }
+    .modal-overlay.open { opacity:1; pointer-events:auto; }
+    .modal {
+      background: var(--panel); width:100%; max-width:680px; max-height:88vh; overflow-y:auto;
+      border-radius: 18px 18px 0 0; padding: 26px 22px 30px; position:relative;
+      border:1px solid var(--border); border-bottom:none;
+      transform: translateY(16px); transition: transform .18s;
+    }
+    .modal-overlay.open .modal { transform: translateY(0); }
+    @media (min-width: 720px){
+      .modal-overlay { align-items:center; }
+      .modal { border-radius: 18px; border-bottom:1px solid var(--border); }
+    }
+    .modal-close {
+      position:absolute; top:14px; right:14px; width:32px; height:32px; border-radius:50%;
+      border:1px solid var(--border); background:var(--bg-alt); color:var(--text-dim); font-size:15px;
+    }
+    .modal-header h2 { margin:8px 0 10px; font-size:19px; line-height:1.4; padding-right:30px; font-weight:800; }
+    .modal-tags { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
+    .tag { font-family:var(--mono); font-size:10.5px; background: var(--bg-alt); border:1px solid var(--border); color:var(--text-dim); padding:3px 9px; border-radius:5px; }
+    .modal-date { font-family:var(--mono); font-size:11px; color:var(--text-faint); margin-bottom:16px; }
+    .modal-causas { white-space:pre-wrap; font-size:14px; line-height:1.7; color:var(--text); border-top:1px solid var(--border); padding-top:16px; }
+    .modal-actions { display:flex; gap:8px; margin-top:22px; }
+    .modal-actions button { flex:1; padding:12px; border-radius:10px; border:1px solid var(--border); background:var(--bg-alt); color:var(--text); font-weight:700; font-size:13px; }
+    .modal-actions button.danger { color: var(--danger); border-color: var(--danger-soft); }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 24px; left:50%; transform: translateX(-50%) translateY(20px);
+      background:#1c212b; border:1px solid var(--border); color:var(--text); padding:12px 20px;
+      border-radius:10px; font-size:13.5px; box-shadow: var(--shadow); z-index:200;
+      opacity:0; pointer-events:none; transition: all .2s; max-width:90vw;
+    }
+    .toast.show { opacity:1; transform: translateX(-50%) translateY(0); }
+    .toast.erro { border-color: var(--danger); color: var(--danger); }
+    .toast.ok { border-color: var(--success); }
+
+    /* Mobile bottom nav */
+    @media (max-width: 640px){
+      header.topbar { padding:12px 14px; }
+      .brand-text h1 { font-size:14px; }
+      nav.tabs {
+        position: fixed; bottom:0; left:0; right:0; top:auto;
+        justify-content: space-around; padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+        background: var(--panel); border-top:1px solid var(--border); border-bottom:none;
+      }
+      .tab-btn { flex-direction:column; gap:2px; padding:7px 8px; font-size:10px; flex:1; }
+      .tab-icon { font-size:18px; }
+      main { padding:14px 14px 100px; }
+      .result-card { flex-direction:column; }
+      .result-actions { flex-direction:row; }
+      .btn-ver, .btn-descartar { flex:1; }
+    }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">🔧</div>
+      <div class="brand-text">
+        <h1>Diagnóstico Mestre</h1>
+        <small>banco de causas · motor bayesiano</small>
+      </div>
+    </div>
+    <div id="statsMini">carregando…</div>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button class="tab-btn active" data-tab="buscar"><span class="tab-icon">🔍</span><span class="tab-label">Buscar</span></button>
+    <button class="tab-btn" data-tab="adicionar"><span class="tab-icon">➕</span><span class="tab-label">Adicionar</span></button>
+    <button class="tab-btn" data-tab="gerenciar"><span class="tab-icon">🗂️</span><span class="tab-label">Gerenciar</span></button>
+    <button class="tab-btn" data-tab="dados"><span class="tab-icon">💾</span><span class="tab-label">Dados</span></button>
+  </nav>
+
+  <main>
+
+    <!-- BUSCAR -->
+    <section id="tab-buscar" class="tab-panel active">
+      <div class="search-bar">
+        <input id="searchInput" type="text" placeholder="Ex: jet ski GTI 130 só liga fora da água" autocomplete="off">
+        <select id="filterCategoria"><option value="">Todas as categorias</option></select>
+        <button id="btnBuscar">Buscar</button>
+      </div>
+      <p class="search-hint">💡 O motor bayesiano aprende com a oficina. Casos marcados como resolvidos no passado ganham peso e aparecem no topo! Use "Descartar" para ir eliminando suspeitos.</p>
+      <div id="searchMeta" class="search-meta"></div>
+      <div id="resultsList" class="results-list"></div>
+    </section>
+
+    <!-- ADICIONAR -->
+    <section id="tab-adicionar" class="tab-panel">
+      
+      <!-- NOVO: ADIÇÃO INTELIGENTE (Auto-Bayes NLP) -->
+      <div class="card destaque">
+        <h3>⚡ Adição Inteligente (NLP)</h3>
+        <p class="hint">Cole um texto ou diagnóstico livre. O sistema filtra, extrai tags, gera o título e tenta categorizar automaticamente!</p>
+        <textarea id="fTextoLivre" placeholder="Ex: Hoje peguei um sea-doo gti 130 que só liga fora da água. O defeito era o conector do chicote principal oxidado." style="min-height: 80px;"></textarea>
+        <button type="button" id="btnSmartAdd" class="btn-primary" style="margin-top:10px; width: 100%;">🧠 Processar e Salvar Magicamente</button>
+      </div>
+
+      <div class="add-grid">
+        <div class="card">
+          <h3>Adicionar caso único</h3>
+          <p class="hint">Cadastre manualmente e detalhadamente um sintoma.</p>
+          <form id="formSingle">
+            <label for="fTitulo">Título / sintoma</label>
+            <input id="fTitulo" type="text" placeholder="Ex: Jet Ski GTI 130 só liga fora da água" required>
+
+            <label for="fCategoria">Categoria / modelo</label>
+            <input id="fCategoria" type="text" list="categoriasList" placeholder="Ex: Moto Honda CG 150">
+            <datalist id="categoriasList"></datalist>
+
+            <label for="fTags">Tags (separadas por vírgula)</label>
+            <input id="fTags" type="text" placeholder="Ex: partida a frio, vela, carburador">
+
+            <label for="fCausas">Causas prováveis / observações</label>
+            <textarea id="fCausas" placeholder="Descreva as possíveis causas..." required></textarea>
+
+            <div class="form-actions">
+              <button type="submit" id="btnSubmitSingle" class="btn-primary">💾 Salvar caso</button>
+              <button type="button" id="btnCancelEdit" class="btn-secondary" style="display:none;">Cancelar edição</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="card">
+          <h3>Importação em massa</h3>
+          <p class="hint">
+            Cole vários casos de uma vez. Separe cada caso com uma linha contendo apenas <code>---</code>.<br>
+            Logo após o título você pode incluir <code>Categoria: ...</code> e <code>Tags: ...</code> (opcional).
+          </p>
+          <input id="bulkCategoriaPadrao" type="text" list="categoriasList" placeholder="Categoria padrão para casos sem 'Categoria:' (opcional)">
+          <textarea id="bulkText" placeholder="Moto Honda CG 150 não pega a frio
+Categoria: Moto Honda CG 150
+Tags: partida a frio, vela, carburador
+Verificar vela de ignição..."></textarea>
+          <div class="bulk-actions">
+            <button type="button" id="btnParsePreview" class="btn-secondary">👁️ Pré-visualizar</button>
+            <button type="button" id="btnBulkImport" class="btn-primary">⬆️ Importar tudo</button>
+          </div>
+          <div id="bulkPreview"></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- GERENCIAR -->
+    <section id="tab-gerenciar" class="tab-panel">
+      <div class="manage-toolbar">
+        <input id="manageSearch" type="text" placeholder="Filtrar por título ou categoria...">
+        <select id="manageCategoria"><option value="">Todas as categorias</option></select>
+        <span id="manageCount"></span>
+      </div>
+      <div id="manageList" class="manage-list"></div>
+    </section>
+
+    <!-- DADOS -->
+    <section id="tab-dados" class="tab-panel">
+      <div class="card">
+        <h3>Exportar banco de dados</h3>
+        <p class="hint">Gera um arquivo .json com todos os casos cadastrados neste navegador/dispositivo.</p>
+        <button id="btnExport" class="btn-primary">⬇️ Exportar JSON</button>
+      </div>
+      <div class="card">
+        <h3>Importar banco de dados</h3>
+        <p class="hint">Importa um arquivo .json exportado por este mesmo programa. O banco só cresce, nunca duplica.</p>
+        <input type="file" id="fileImport" accept=".json,application/json">
+        <div class="form-actions">
+          <button id="btnImportFile" class="btn-primary">⬆️ Importar arquivo</button>
+        </div>
+        <div id="importResult"></div>
+      </div>
+      <div class="card danger">
+        <h3>⚠️ Zona de risco</h3>
+        <p class="hint">Apaga permanentemente todos os casos deste dispositivo. Exporte um backup antes.</p>
+        <button id="btnClearAll" class="btn-secondary" style="border-color:var(--danger); color:var(--danger);">🗑️ Apagar todo o banco</button>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <button class="modal-close" id="modalClose">✕</button>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  'use strict';
+
+  // Atualizado a versão para forçar upgrade seguro se necessário
+  const DB_NAME = 'diagnosticoMestreDB';
+  const DB_VERSION = 2; 
+  const STORE = 'casos';
+  let db = null;
+  let allEntries = [];
+  let eliminados = new Set();
+  let ultimaBusca = null;
+  let manageLimit = 150;
+  let resultLimit = 60;
+
+  // Stopwords para NLP
+  const stopWords = ['o','a','e','de','do','da','em','um','uma','para','com','que','na','no','era','foi','é','os','as','ao','aos','se','por','isso','aquilo','como','mas','ou','já','esta','este','dos','das'];
+
+  /* ---------------- IndexedDB ---------------- */
+  function openDB(){
+    return new Promise((resolve, reject)=>{
+      if(!window.indexedDB){ reject(new Error('IndexedDB não disponível neste navegador.')); return; }
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = (e)=>{
+        const _db = e.target.result;
+        if(!_db.objectStoreNames.contains(STORE)){
+          const s = _db.createObjectStore(STORE, { keyPath:'id', autoIncrement:true });
+          s.createIndex('categoria', 'categoria', { unique:false });
+          s.createIndex('dataAdicao', 'dataAdicao', { unique:false });
+        }
+      };
+      req.onsuccess = (e)=> { db = e.target.result; resolve(db); };
+      req.onerror = (e)=> reject(e.target.error || new Error('Falha ao abrir o banco local.'));
+    });
+  }
+  function store(mode){ return db.transaction(STORE, mode).objectStore(STORE); }
+  function dbGetAll(){
+    return new Promise((resolve,reject)=>{
+      const r = store('readonly').getAll();
+      r.onsuccess = ()=>resolve(r.result);
+      r.onerror = ()=>reject(r.error);
+    });
+  }
+  function dbAdd(entry){
+    return new Promise((resolve,reject)=>{
+      const r = store('readwrite').add(entry);
+      r.onsuccess = ()=>resolve(r.result);
+      r.onerror = ()=>reject(r.error);
+    });
+  }
+  function dbPut(entry){
+    return new Promise((resolve,reject)=>{
+      const r = store('readwrite').put(entry);
+      r.onsuccess = ()=>resolve(r.result);
+      r.onerror = ()=>reject(r.error);
+    });
+  }
+  function dbDelete(id){
+    return new Promise((resolve,reject)=>{
+      const r = store('readwrite').delete(id);
+      r.onsuccess = ()=>resolve();
+      r.onerror = ()=>reject(r.error);
+    });
+  }
+  function dbClear(){
+    return new Promise((resolve,reject)=>{
+      const r = store('readwrite').clear();
+      r.onsuccess = ()=>resolve();
+      r.onerror = ()=>reject(r.error);
+    });
+  }
+
+  async function refreshCache(){
+    allEntries = await dbGetAll();
+    atualizarStatsMini();
+    popularFiltrosCategoria();
+  }
+
+  /* ---------------- Utils ---------------- */
+  function normalize(str){
+    return (str||'').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+  }
+  function tokenize(str){
+    return normalize(str).split(/[^a-z0-9]+/i).filter(t=>t.length>1);
+  }
+  function contarOcorrencias(haystack, needle){
+    if(!needle) return 0;
+    let count=0, pos=0;
+    while(true){
+      pos = haystack.indexOf(needle,pos);
+      if(pos===-1) break;
+      count++; pos += needle.length;
+    }
+    return count;
+  }
+  function escapeHtml(str){
+    return (str||'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function escapeRegex(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+  function accentPattern(token){
+    const map = { a:'[aàáâã]', e:'[eèéê]', i:'[iìíî]', o:'[oòóôõ]', u:'[uùúû]', c:'[cç]' };
+    return token.split('').map(ch=> map[ch] || escapeRegex(ch)).join('');
+  }
+  function formatDate(ts){
+    if(!ts) return '';
+    const d = new Date(ts);
+    return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  }
+  let toastTimer=null;
+  function showToast(msg, tipo){
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast show' + (tipo?(' '+tipo):'');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=> el.classList.remove('show'), 3200);
+  }
+  function debounce(fn, ms){
+    let t;
+    return function(...args){ clearTimeout(t); t = setTimeout(()=>fn.apply(this,args), ms); };
+  }
+
+  /* ---------------- Motor de Busca BAYESIANO ---------------- */
+  function scoreEntry(entry, tokens, queryNorm){
+    const tituloN = normalize(entry.titulo);
+    const catN = normalize(entry.categoria);
+    const tagsN = normalize((entry.tags||[]).join(' '));
+    const causasN = normalize(entry.causas);
+    
+    let score = 0;
+    if(queryNorm){
+      if(tituloN.includes(queryNorm)) score += 70;
+      if(catN.includes(queryNorm)) score += 35;
+      if(causasN.includes(queryNorm)) score += 25;
+    }
+    tokens.forEach(tok=>{
+      score += contarOcorrencias(tituloN, tok) * 9;
+      score += contarOcorrencias(catN, tok) * 6;
+      score += contarOcorrencias(tagsN, tok) * 7;
+      score += contarOcorrencias(causasN, tok) * 1.2;
+    });
+
+    // O Segredo Bayesiano original 100% aplicado
+    const sucessosOficina = entry.sucessos || 0;
+    const pesoBayesiano = 1 + (sucessosOficina * 0.15); 
+    
+    return score * pesoBayesiano;
+  }
+  function buscar(query, categoria){
+    const queryNorm = normalize(query);
+    const tokens = tokenize(query);
+    if(!queryNorm) return [];
+    let base = allEntries;
+    if(categoria) base = base.filter(e=> e.categoria === categoria);
+    return base.map(e=> ({ entry:e, score: scoreEntry(e, tokens, queryNorm) }))
+      .filter(r=> r.score > 0)
+      .sort((a,b)=> b.score - a.score);
+  }
+  function gerarTrecho(causas, tokens){
+    const tamanho = 190;
+    const causasN = normalize(causas);
+    let idx = -1;
+    for(const tok of tokens){ idx = causasN.indexOf(tok); if(idx!==-1) break; }
+    if(idx===-1) idx = 0;
+    const start = Math.max(0, idx-70);
+    const end = Math.min(causas.length, start+tamanho);
+    let trecho = (start>0?'… ':'') + causas.substring(start,end).trim() + (end<causas.length?' …':'');
+    return destacarTermos(trecho, tokens);
+  }
+  function destacarTermos(texto, tokens){
+    let escapado = escapeHtml(texto);
+    const vistos = new Set();
+    tokens.forEach(tok=>{
+      if(tok.length<2 || vistos.has(tok)) return;
+      vistos.add(tok);
+      try{
+        const re = new RegExp('('+accentPattern(tok)+')','gi');
+        escapado = escapado.replace(re, '<mark>$1</mark>');
+      }catch(e){ /* ignora token problemático */ }
+    });
+    return escapado;
+  }
+
+  /* ---------------- Renderização: Buscar ---------------- */
+  function executarBusca(){
+    const query = document.getElementById('searchInput').value.trim();
+    const categoria = document.getElementById('filterCategoria').value;
+    const chave = query+'|'+categoria;
+    if(chave !== ultimaBusca){ eliminados = new Set(); ultimaBusca = chave; resultLimit = 60; }
+    const tokens = tokenize(query);
+    const resultados = buscar(query, categoria);
+    renderResultados(resultados, tokens, query);
+  }
+
+  function renderResultados(resultados, tokens, query){
+    const container = document.getElementById('resultsList');
+    const meta = document.getElementById('searchMeta');
+    if(!query){
+      meta.textContent = '';
+      container.innerHTML = '';
+      return;
+    }
+    if(resultados.length===0){
+      meta.textContent = 'Nenhum caso compatível encontrado.';
+      container.innerHTML = '<div class="empty">🔎 Nenhum suspeito encontrado no banco de dados para esse termo.<br>Tente outras palavras ou cadastre este caso na aba "Adicionar".</div>';
+      return;
+    }
+    const maxScore = resultados[0].score;
+    const ativos = resultados.filter(r=> !eliminados.has(r.entry.id));
+    const descartados = resultados.filter(r=> eliminados.has(r.entry.id));
+    const ordenados = ativos.concat(descartados);
+    const visiveis = ordenados.slice(0, resultLimit);
+
+    meta.textContent = resultados.length + ' caso(s) compatível(is), ordenado(s) por relevância' + (resultados.length>visiveis.length? ' — mostrando '+visiveis.length : '');
+
+    let rankAtivo = 0;
+    let html = visiveis.map(r=>{
+      const el = eliminados.has(r.entry.id);
+      const pct = Math.max(6, Math.min(100, Math.round((r.score/maxScore)*100)));
+      const trecho = gerarTrecho(r.entry.causas, tokens);
+      let rankLabel;
+      if(el){ rankLabel = '✕'; } else { rankAtivo++; rankLabel = '#'+rankAtivo; }
+      
+      const badgeSucesso = (r.entry.sucessos > 0) ? `<span class="badge badge-success">🔥 Resolvido ${r.entry.sucessos}x</span>` : '';
+
+      return `
+      <div class="result-card ${el?'eliminado':''}" data-id="${r.entry.id}">
+        <div class="result-rank">${rankLabel}</div>
+        <div class="result-main">
+          <div class="result-header">
+            <h4>${escapeHtml(r.entry.titulo)}</h4>
+            <div>
+               <span class="badge">${escapeHtml(r.entry.categoria || 'sem categoria')}</span>
+               ${badgeSucesso}
+            </div>
+          </div>
+          <div class="prob-bar"><div class="prob-fill" style="width:${pct}%"></div><span class="prob-label">🎯 ${pct}% de probabilidade (bayes)</span></div>
+          <p class="snippet">${trecho}</p>
+        </div>
+        <div class="result-actions">
+          <button class="btn-ver" data-action="ver" data-id="${r.entry.id}">Ver caso</button>
+          <button class="btn-descartar" data-action="descartar" data-id="${r.entry.id}">${el?'↩ Reincluir':'✕ Descartar'}</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    container.innerHTML = html;
+
+    if(resultados.length > visiveis.length){
+      const btn = document.createElement('button');
+      btn.className = 'btn-secondary';
+      btn.style.width = '100%';
+      btn.textContent = 'Carregar mais resultados ('+(resultados.length-visiveis.length)+' restantes)';
+      btn.onclick = ()=>{ resultLimit += 60; executarBusca(); };
+      container.appendChild(btn);
+    }
+  }
+
+  document.addEventListener('click', (e)=>{
+    const btn = e.target.closest('[data-action]');
+    if(!btn) return;
+    const action = btn.dataset.action;
+    const id = Number(btn.dataset.id);
+    if(action==='ver'){ abrirModal(id); }
+    else if(action==='descartar'){
+      if(eliminados.has(id)) eliminados.delete(id); else eliminados.add(id);
+      executarBusca();
+    }
+    else if(action==='editar'){ editarCaso(id); }
+    else if(action==='excluir'){ excluirCaso(id); }
+    else if(action==='sucesso'){ registrarSucesso(id); }
+  });
+
+  /* ---------------- Feedback Bayesiano (Sucesso) ---------------- */
+  async function registrarSucesso(id){
+      const entry = allEntries.find(e=> e.id===id);
+      if(!entry) return;
+      entry.sucessos = (entry.sucessos || 0) + 1;
+      await dbPut(entry);
+      await refreshCache();
+      fecharModal();
+      showToast('Inteligência Bayesiana atualizada! Este caso agora tem mais peso nas buscas.', 'ok');
+      executarBusca();
+  }
+
+  /* ---------------- Modal ---------------- */
+  function escapeHtmlKeepBreaks(str){ return escapeHtml(str).replace(/\n/g, '<br>'); }
+
+  function abrirModal(id){
+    const entry = allEntries.find(e=> e.id===id);
+    if(!entry) return;
+    const tokens = tokenize(document.getElementById('searchInput').value);
+    document.getElementById('modalBody').innerHTML = `
+      <div class="modal-header">
+        <span class="badge">${escapeHtml(entry.categoria || 'sem categoria')}</span>
+        <h2>${escapeHtml(entry.titulo)}</h2>
+        <div class="modal-tags">${(entry.tags||[]).map(t=>`<span class="tag">#${escapeHtml(t)}</span>`).join('')}</div>
+        <div class="modal-date">🕒 adicionado em ${formatDate(entry.dataAdicao)}</div>
+      </div>
+      <div class="modal-causas">${destacarTermos(escapeHtmlKeepBreaks(entry.causas), tokens)}</div>
+      
+      <button class="btn-success" data-action="sucesso" data-id="${entry.id}">
+        ✅ A solução foi esta! (Ensinar o algoritmo)
+      </button>
+
+      <div class="modal-actions">
+        <button data-action="editar" data-id="${entry.id}">✏️ Editar</button>
+        <button data-action="excluir" data-id="${entry.id}" class="danger">🗑️ Excluir</button>
+      </div>
+    `;
+    document.getElementById('modalOverlay').classList.add('open');
+  }
+  document.getElementById('modalClose').addEventListener('click', fecharModal);
+  document.getElementById('modalOverlay').addEventListener('click', (e)=>{
+    if(e.target.id==='modalOverlay') fecharModal();
+  });
+  function fecharModal(){ document.getElementById('modalOverlay').classList.remove('open'); }
+
+  /* ---------------- Adicionar: Inteligente (NLP) ---------------- */
+  document.getElementById('btnSmartAdd').addEventListener('click', async ()=>{
+      const texto = document.getElementById('fTextoLivre').value.trim();
+      if(!texto){ showToast('Cole algum texto primeiro!', 'erro'); return; }
+
+      const words = tokenize(texto).filter(w => !stopWords.includes(w));
+      const frequencia = {};
+      words.forEach(w => frequencia[w] = (frequencia[w] || 0) + 1);
+      const tagsSugeridas = Object.keys(frequencia).sort((a,b)=> frequencia[b]-frequencia[a]).slice(0, 6);
+
+      const categoriasExistentes = Array.from(new Set(allEntries.map(e=> e.categoria).filter(Boolean)));
+      let categoriaSugerida = "";
+      for(let cat of categoriasExistentes){
+          if(normalize(texto).includes(normalize(cat))){ categoriaSugerida = cat; break; }
+      }
+
+      let tituloSugerido = texto.split('\n')[0].substring(0, 50);
+      if(tituloSugerido.length === 50) tituloSugerido += "...";
+
+      await dbAdd({ 
+          titulo: tituloSugerido, 
+          categoria: categoriaSugerida, 
+          tags: tagsSugeridas, 
+          causas: texto, 
+          dataAdicao: Date.now(),
+          sucessos: 0 
+      });
+
+      document.getElementById('fTextoLivre').value = '';
+      await refreshCache();
+      renderGerenciar();
+      showToast('Caso extraído e categorizado com sucesso via NLP!', 'ok');
+  });
+
+
+  /* ---------------- Adicionar: caso único ---------------- */
+  const formSingle = document.getElementById('formSingle');
+  formSingle.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const titulo = document.getElementById('fTitulo').value.trim();
+    const categoria = document.getElementById('fCategoria').value.trim();
+    const tags = document.getElementById('fTags').value.split(',').map(t=>t.trim()).filter(Boolean);
+    const causas = document.getElementById('fCausas').value.trim();
+    if(!titulo || !causas){ showToast('Preencha pelo menos o título e as causas prováveis.', 'erro'); return; }
+    const editingId = formSingle.dataset.editingId;
+    try{
+      if(editingId){
+        // Preserva o numero de sucessos se estiver editando
+        const entryAntiga = allEntries.find(x => x.id === Number(editingId));
+        await dbPut({ id:Number(editingId), titulo, categoria, tags, causas, dataAdicao: Number(formSingle.dataset.editingDate) || Date.now(), sucessos: entryAntiga ? entryAntiga.sucessos : 0 });
+        showToast('Caso atualizado com sucesso.', 'ok');
+      } else {
+        await dbAdd({ titulo, categoria, tags, causas, dataAdicao: Date.now(), sucessos: 0 });
+        showToast('Caso adicionado ao banco de dados.', 'ok');
+      }
+      cancelarEdicao();
+      await refreshCache();
+      renderGerenciar();
+    }catch(err){
+      showToast('Erro ao salvar: '+err.message, 'erro');
+    }
+  });
+  function cancelarEdicao(){
+    formSingle.reset();
+    delete formSingle.dataset.editingId;
+    delete formSingle.dataset.editingDate;
+    document.getElementById('btnSubmitSingle').textContent = '💾 Salvar caso';
+    document.getElementById('btnCancelEdit').style.display = 'none';
+  }
+  document.getElementById('btnCancelEdit').addEventListener('click', cancelarEdicao);
+
+  function editarCaso(id){
+    const entry = allEntries.find(e=> e.id===id);
+    if(!entry) return;
+    fecharModal();
+    mudarAba('adicionar');
+    document.getElementById('fTitulo').value = entry.titulo;
+    document.getElementById('fCategoria').value = entry.categoria || '';
+    document.getElementById('fTags').value = (entry.tags||[]).join(', ');
+    document.getElementById('fCausas').value = entry.causas;
+    formSingle.dataset.editingId = entry.id;
+    formSingle.dataset.editingDate = entry.dataAdicao || Date.now();
+    document.getElementById('btnSubmitSingle').textContent = '💾 Salvar alterações';
+    document.getElementById('btnCancelEdit').style.display = 'inline-block';
+    document.getElementById('fTitulo').scrollIntoView({behavior:'smooth', block:'center'});
+  }
+
+  async function excluirCaso(id){
+    const entry = allEntries.find(e=> e.id===id);
+    if(!entry) return;
+    if(!confirm('Excluir o caso "'+entry.titulo+'"? Essa ação não pode ser desfeita.')) return;
+    await dbDelete(id);
+    fecharModal();
+    await refreshCache();
+    executarBusca();
+    renderGerenciar();
+    showToast('Caso excluído.', 'ok');
+  }
+
+  /* ---------------- Adicionar: importação em massa ---------------- */
+  function parseBulkText(text, categoriaPadrao){
+    const blocks = text.split(/^[ \t]*-{3,}[ \t]*$/m).map(b=>b.trim()).filter(Boolean);
+    return blocks.map(block=>{
+      const lines = block.split('\n').map(l=>l.trim());
+      let titulo = (lines[0]||'').replace(/^#+\s*/,'').trim();
+      let categoria = categoriaPadrao || '';
+      let tags = [];
+      let idx = 1;
+      while(idx < lines.length){
+        if(/^categoria\s*:/i.test(lines[idx])){ categoria = lines[idx].replace(/^categoria\s*:/i,'').trim(); idx++; continue; }
+        if(/^tags?\s*:/i.test(lines[idx])){ tags = lines[idx].replace(/^tags?\s*:/i,'').split(',').map(t=>t.trim()).filter(Boolean); idx++; continue; }
+        if(lines[idx]===''){ idx++; continue; }
+        break;
+      }
+      const causas = lines.slice(idx).join('\n').trim();
+      return { titulo, categoria, tags, causas };
+    }).filter(b=> b.titulo && b.causas);
+  }
+
+  document.getElementById('btnParsePreview').addEventListener('click', ()=>{
+    const text = document.getElementById('bulkText').value;
+    const catPadrao = document.getElementById('bulkCategoriaPadrao').value.trim();
+    const parsed = parseBulkText(text, catPadrao);
+    const prev = document.getElementById('bulkPreview');
+    if(parsed.length===0){
+      prev.innerHTML = '<p class="empty" style="padding:14px;">Nada reconhecido. Verifique o formato do texto colado.</p>';
+      return;
+    }
+    prev.innerHTML = '<p class="hint" style="margin-bottom:8px;">'+parsed.length+' caso(s) detectado(s):</p>' +
+      parsed.map(b=> `<div class="preview-item"><b>${escapeHtml(b.titulo)}</b><div class="pi-meta">${escapeHtml(b.categoria||'sem categoria')} · ${b.causas.length} caracteres${b.tags.length? ' · tags: '+escapeHtml(b.tags.join(', ')) : ''}</div></div>`).join('');
+  });
+
+  document.getElementById('btnBulkImport').addEventListener('click', async ()=>{
+    const text = document.getElementById('bulkText').value;
+    const catPadrao = document.getElementById('bulkCategoriaPadrao').value.trim();
+    const parsed = parseBulkText(text, catPadrao);
+    if(parsed.length===0){ showToast('Nenhum caso reconhecido no texto colado.', 'erro'); return; }
+    let count = 0;
+    for(const item of parsed){
+      await dbAdd({ titulo:item.titulo, categoria:item.categoria, tags:item.tags, causas:item.causas, dataAdicao: Date.now(), sucessos:0 });
+      count++;
+    }
+    await refreshCache();
+    renderGerenciar();
+    document.getElementById('bulkText').value = '';
+    document.getElementById('bulkPreview').innerHTML = '';
+    showToast(count+' caso(s) importado(s) com sucesso.', 'ok');
+  });
+
+  /* ---------------- Gerenciar ---------------- */
+  function renderGerenciar(){
+    const termo = normalize(document.getElementById('manageSearch').value);
+    const cat = document.getElementById('manageCategoria').value;
+    let lista = allEntries.slice();
+    if(cat) lista = lista.filter(e=> e.categoria===cat);
+    if(termo) lista = lista.filter(e=> normalize(e.titulo).includes(termo) || normalize(e.categoria).includes(termo));
+    lista.sort((a,b)=> (b.dataAdicao||0)-(a.dataAdicao||0));
+    document.getElementById('manageCount').textContent = lista.length + ' de ' + allEntries.length + ' caso(s)';
+    const visiveis = lista.slice(0, manageLimit);
+    let html = visiveis.map(e=> `
+      <div class="manage-item">
+        <div class="manage-item-info">
+          <strong>${escapeHtml(e.titulo)}</strong>
+          <span class="badge">${escapeHtml(e.categoria || 'sem categoria')}</span>
+          <span class="manage-date">${formatDate(e.dataAdicao)}</span>
+        </div>
+        <div class="manage-item-actions">
+          <button data-action="ver" data-id="${e.id}" title="Ver">👁️</button>
+          <button data-action="editar" data-id="${e.id}" title="Editar">✏️</button>
+          <button data-action="excluir" data-id="${e.id}" title="Excluir">🗑️</button>
+        </div>
+      </div>`).join('');
+    if(lista.length===0) html = '<div class="empty">Nenhum caso cadastrado ainda.<br>Use a aba "Adicionar" para começar.</div>';
+    const manageListEl = document.getElementById('manageList');
+    manageListEl.innerHTML = html;
+    if(lista.length > visiveis.length){
+      const btn = document.createElement('button');
+      btn.className = 'btn-secondary';
+      btn.style.width='100%';
+      btn.textContent = 'Carregar mais ('+(lista.length-visiveis.length)+' restantes)';
+      btn.onclick = ()=>{ manageLimit += 150; renderGerenciar(); };
+      manageListEl.appendChild(btn);
+    }
+  }
+  document.getElementById('manageSearch').addEventListener('input', debounce(()=>{ manageLimit=150; renderGerenciar(); }, 150));
+  document.getElementById('manageCategoria').addEventListener('change', ()=>{ manageLimit=150; renderGerenciar(); });
+
+  /* ---------------- Categorias / stats ---------------- */
+  function popularFiltrosCategoria(){
+    const cats = Array.from(new Set(allEntries.map(e=> e.categoria).filter(Boolean))).sort((a,b)=> a.localeCompare(b,'pt-BR'));
+    [document.getElementById('filterCategoria'), document.getElementById('manageCategoria')].forEach(sel=>{
+      const atual = sel.value;
+      sel.innerHTML = '<option value="">Todas as categorias</option>' + cats.map(c=> `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+      if(cats.includes(atual)) sel.value = atual;
+    });
+    document.getElementById('categoriasList').innerHTML = cats.map(c=> `<option value="${escapeHtml(c)}">`).join('');
+  }
+  function atualizarStatsMini(){
+    const totalCasos = allEntries.length;
+    const totalCats = new Set(allEntries.map(e=>e.categoria).filter(Boolean)).size;
+    document.getElementById('statsMini').innerHTML = `<b>${totalCasos}</b> caso(s)<br><b>${totalCats}</b> categoria(s)`;
+  }
+
+  /* ---------------- Exportar / Importar JSON ---------------- */
+  document.getElementById('btnExport').addEventListener('click', async ()=>{
+    const dados = await dbGetAll();
+    if(dados.length===0){ showToast('O banco de dados está vazio.', 'erro'); return; }
+    const payload = { app:'DiagnosticoMestre', versao:DB_VERSION, exportadoEm:new Date().toISOString(), total:dados.length, casos:dados };
+    const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'diagnostico-mestre-backup-'+new Date().toISOString().slice(0,10)+'.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    showToast('Backup exportado: '+dados.length+' caso(s).', 'ok');
+  });
+
+  document.getElementById('btnImportFile').addEventListener('click', async ()=>{
+    const fileInput = document.getElementById('fileImport');
+    const file = fileInput.files[0];
+    if(!file){ showToast('Selecione um arquivo .json primeiro.', 'erro'); return; }
+    try{
+      const text = await file.text();
+      const json = JSON.parse(text);
+      const casos = Array.isArray(json) ? json : (json.casos || []);
+      if(!Array.isArray(casos) || casos.length===0){ showToast('Nenhum caso encontrado no arquivo.', 'erro'); return; }
+      const existentes = new Set(allEntries.map(e=> normalize(e.titulo)+'|'+normalize(e.categoria||'')));
+      let importados=0, ignorados=0;
+      for(const c of casos){
+        if(!c || !c.titulo || !c.causas){ ignorados++; continue; }
+        const key = normalize(c.titulo)+'|'+normalize(c.categoria||'');
+        if(existentes.has(key)){ ignorados++; continue; }
+        existentes.add(key);
+        await dbAdd({
+          titulo: String(c.titulo),
+          categoria: c.categoria ? String(c.categoria) : '',
+          tags: Array.isArray(c.tags) ? c.tags : (c.tags ? String(c.tags).split(',').map(t=>t.trim()).filter(Boolean) : []),
+          causas: String(c.causas),
+          dataAdicao: c.dataAdicao || Date.now(),
+          sucessos: c.sucessos || 0 // Suporta importação mantendo a "Inteligência"
+        });
+        importados++;
+      }
+      await refreshCache();
+      renderGerenciar();
+      document.getElementById('importResult').textContent = '✅ '+importados+' caso(s) importado(s).' + (ignorados? ' '+ignorados+' ignorado(s) (duplicado ou incompleto).' : '');
+      showToast(importados+' caso(s) importado(s).', 'ok');
+      fileInput.value = '';
+    }catch(err){
+      showToast('Arquivo JSON inválido ou corrompido.', 'erro');
+    }
+  });
+
+  document.getElementById('btnClearAll').addEventListener('click', async ()=>{
+    if(allEntries.length===0){ showToast('O banco já está vazio.', 'erro'); return; }
+    if(!confirm('Isso vai apagar TODOS os '+allEntries.length+' casos do banco de dados. Essa ação NÃO pode ser desfeita. Recomendado: exporte um backup antes. Continuar?')) return;
+    const confirmacao = prompt('Para confirmar, digite APAGAR em maiúsculas:');
+    if(confirmacao !== 'APAGAR'){ showToast('Operação cancelada.', ''); return; }
+    await dbClear();
+    localStorage.setItem('dm_seeded', '1');
+    await refreshCache();
+    executarBusca();
+    renderGerenciar();
+    showToast('Banco de dados apagado.', 'ok');
+  });
+
+  /* ---------------- Abas ---------------- */
+  function mudarAba(nome){
+    document.querySelectorAll('.tab-btn').forEach(b=> b.classList.toggle('active', b.dataset.tab===nome));
+    document.querySelectorAll('.tab-panel').forEach(p=> p.classList.toggle('active', p.id==='tab-'+nome));
+    if(nome==='gerenciar') renderGerenciar();
+    window.scrollTo({top:0, behavior:'instant'});
+  }
+  document.getElementById('tabs').addEventListener('click', (e)=>{
+    const btn = e.target.closest('.tab-btn');
+    if(!btn) return;
+    mudarAba(btn.dataset.tab);
+  });
+
+  /* ---------------- Eventos de busca ---------------- */
+  document.getElementById('searchInput').addEventListener('input', debounce(executarBusca, 180));
+  document.getElementById('filterCategoria').addEventListener('change', executarBusca);
+  document.getElementById('btnBuscar').addEventListener('click', executarBusca);
+  document.getElementById('searchInput').addEventListener('keydown', (e)=>{ if(e.key==='Enter') executarBusca(); });
+
+  document.addEventListener('keydown', (e)=>{
+    const tag = document.activeElement ? document.activeElement.tagName : '';
+    if(e.key==='/' && tag!=='INPUT' && tag!=='TEXTAREA'){
+      e.preventDefault();
+      mudarAba('buscar');
+      document.getElementById('searchInput').focus();
+    }
+    if(e.key==='Escape') fecharModal();
+  });
+
+  /* ---------------- Seed de exemplo (primeira vez apenas) ---------------- */
+  async function seedExemplos(){
+    if(localStorage.getItem('dm_seeded')) return;
+    localStorage.setItem('dm_seeded', '1');
+    const atuais = await dbGetAll();
+    if(atuais.length>0) return;
+    const exemplos = [
+      {
+        titulo: '[EXEMPLO] Jet Ski Sea-Doo GTI 130 só liga fora da água',
+        categoria: 'Exemplos (pode excluir)',
+        tags: ['partida','sensor de agua','MAG','chicote','curto'],
+        causas: 'Caso de exemplo, só para mostrar o formato do banco. Edite ou substitua pelos seus próprios casos reais.\n\nPossíveis causas a investigar quando o aparelho funciona normalmente fora da água mas falha ou morre ao entrar na água:\n\n1. Conector do chicote elétrico próximo à popa com corrosão ou trinca, causando curto ao contato com água.\n2. Sensor de presença de água (MAG/OBS) desregulado ou com mau contato.\n3. Capa de vela ou bobina de ignição rachada, permitindo entrada de água e fuga de faísca.\n4. Chave de segurança (lanyard) ou botão de parada com infiltração, fechando o circuito de corte ao molhar.\n5. Aterramento (massa) do motor oxidado, criando caminho de curto quando úmido.\n\nOrdem sugerida de investigação: testar cada conector com multímetro em ambiente seco e depois borrifando água, isolando o ponto exato do curto antes de trocar peças.',
+        dataAdicao: Date.now(),
+        sucessos: 0
+      },
+      {
+        titulo: '[EXEMPLO] Moto Honda 150cc não pega a frio, mas pega bem morna',
+        categoria: 'Exemplos (pode excluir)',
+        tags: ['partida a frio','carburador','vela','bateria','CDI'],
+        causas: 'Caso de exemplo — substitua pelos seus próprios diagnósticos.\n\nCausas mais comuns quando a moto tem dificuldade de dar partida a frio mas funciona normalmente após aquecer:\n\n1. Afogador/choke não vedando corretamente ou cabo desregulado.\n2. Vela de ignição com folga incorreta ou desgastada, perdendo força a frio.\n3. Bateria fraca não sustentando a rotação de partida por tempo suficiente.\n4. Jet de agulha do carburador desregulado, misturando pobre demais a frio.\n5. CDI ou bobina de ignição perdendo faísca em baixa rotação/temperatura.\n\nSugestão: testar centelha a frio, verificar tensão da bateria sob carga, e revisar regulagem do afogador antes de desmontar o carburador.',
+        dataAdicao: Date.now()+1,
+        sucessos: 0
+      }
+    ];
+    for(const ex of exemplos) await dbAdd(ex);
+  }
+
+  function mostrarErroFatal(msg){
+    document.getElementById('app').innerHTML = `<div style="padding:60px 24px; text-align:center;">
+      <div style="font-size:34px; margin-bottom:10px;">⚠️</div>
+      <h2 style="color:var(--danger); margin:0 0 12px;">Não foi possível iniciar o banco de dados</h2>
+      <p style="color:var(--text-dim); max-width:440px; margin:0 auto; line-height:1.6; font-size:13.5px;">${escapeHtml(msg)}</p>
+      <p style="color:var(--text-faint); max-width:440px; margin:16px auto 0; line-height:1.6; font-size:12.5px;">Tente: usar Google Chrome ou Firefox atualizados, sair do modo anônimo/privado, ou (no iPhone/Safari) abrir este arquivo através de um servidor local em vez de abrir direto do arquivo.</p>
+    </div>`;
+  }
+
+  /* ---------------- Inicialização ---------------- */
+  async function init(){
+    try{
+      await openDB();
+    }catch(err){
+      mostrarErroFatal(err && err.message ? err.message : String(err));
+      return;
+    }
+    try{
+      await seedExemplos();
+      await refreshCache();
+      renderGerenciar();
+      document.getElementById('searchInput').focus();
+    }catch(err){
+      showToast('Aviso: '+(err && err.message ? err.message : err), 'erro');
+    }
+  }
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+</body>
+</html>
