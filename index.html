@@ -91,7 +91,7 @@
 
     .search-bar {display: flex;gap: 8px;flex-wrap: nowrap;margin-bottom: 10px;align-items: stretch;}
     #searchInput {
-      flex:1 1 260px; padding:14px 16px; border-radius: var(--radius-sm);
+      flex:1 1 260px; padding: 14px 32px 14px 11px; border-radius: var(--radius-sm);
       border:1px solid var(--border); background:var(--panel); color:var(--text);
       font-size:15px; outline:none;
     }
@@ -371,6 +371,46 @@ display: none;
 nav.tabs:has(.tab-btn[data-tab="buscar"].active) #perguntasBox {
     display: block;
 }
+/* para o x na barra de pesquisa */
+.search-input-wrapper {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+
+.search-input-wrapper input {
+    width: 100%;
+    padding-right: 38px;
+}
+
+.btn-limpar-busca {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    
+    display: none;
+    align-items: center;
+    justify-content: center;
+    
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-dim);
+    
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.btn-limpar-busca:hover {
+    background: var(--border);
+    color: var(--text);
+}
 </style>
 </head>
 <body>
@@ -393,8 +433,11 @@ nav.tabs:has(.tab-btn[data-tab="buscar"].active) #perguntasBox {
 
   <nav class="tabs" id="tabs">
     <div class="search-bar">
+        <div class="search-input-wrapper">
         <input id="searchInput" type="text" placeholder="Ex: jet ski GTI 130 só liga fora da água" autocomplete="off">
-        <select id="filterCategoria"><option value="">Todas as categorias</option></select>
+        <button type="button" id="btnLimparBusca" class="btn-limpar-busca" aria-label="Limpar busca">×</button>
+      </div>
+      <select id="filterCategoria"><option value="">Todas as categorias</option></select>
         <button id="btnBuscar">Buscar</button>
       </div>
     <div id="perguntasBox" class="perguntas-box"></div>
@@ -465,7 +508,11 @@ Verificar parafuso de ar, vazamento de vácuo, vela suja..."></textarea>
     <!-- GERENCIAR -->
     <section id="tab-gerenciar" class="tab-panel">
       <div class="manage-toolbar">
-        <input id="manageSearch" type="text" placeholder="Filtrar por título ou categoria...">
+        
+        <div class="search-input-wrapper">
+    <input id="manageSearch" type="text" placeholder="Filtrar por título ou categoria...">
+    <button type="button" id="btnLimparManageSearch" class="btn-limpar-busca" aria-label="Limpar filtro">×</button>
+</div>
         <select id="manageCategoria" style="padding: 13px 12px;border-radius: var(--radius-sm);border: 1px solid var(--border);background: var(--panel);
          color: var(--text-dim);font-size: 13.5px;max-width: 85px;font-family: var(--mono);"><option value="">Todas as categorias</option></select>
         <span id="manageCount"></span>
@@ -1549,7 +1596,44 @@ function destacarTermos(texto, tokens){
       <p style="color:var(--text-faint); max-width:440px; margin:16px auto 0; line-height:1.6; font-size:12.5px;">Tente: usar Google Chrome ou Firefox atualizados, sair do modo anônimo/privado, ou (no iPhone/Safari) abrir este arquivo através de um servidor local em vez de abrir direto do arquivo.</p>
     </div>`;
   }
+// funçao do x na barra de pesquisa
+const searchInput = document.getElementById('searchInput');
+const btnLimparBusca = document.getElementById('btnLimparBusca');
 
+function atualizarBotaoLimparBusca() {
+    if (!searchInput || !btnLimparBusca) return;
+
+    btnLimparBusca.style.display =
+        searchInput.value.trim() ? 'flex' : 'none';
+}
+
+searchInput?.addEventListener('input', atualizarBotaoLimparBusca);
+
+btnLimparBusca?.addEventListener('click', () => {
+    searchInput.value = '';
+    searchInput.focus();
+    atualizarBotaoLimparBusca();
+});
+const manageSearch = document.getElementById('manageSearch');
+const btnLimparManageSearch = document.getElementById('btnLimparManageSearch');
+
+function atualizarBotaoLimparManageSearch() {
+    if (!manageSearch || !btnLimparManageSearch) return;
+
+    btnLimparManageSearch.style.display =
+        manageSearch.value.trim() ? 'flex' : 'none';
+}
+
+manageSearch?.addEventListener('input', atualizarBotaoLimparManageSearch);
+
+btnLimparManageSearch?.addEventListener('click', () => {
+    manageSearch.value = '';
+    manageSearch.focus();
+    atualizarBotaoLimparManageSearch();
+
+    // Dispara o mesmo evento que a pesquisa normal usa
+    manageSearch.dispatchEvent(new Event('input', { bubbles: true }));
+});
   /* ---------------- Inicialização ---------------- */
   async function init(){
     try{
