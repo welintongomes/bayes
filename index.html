@@ -412,6 +412,18 @@ nav.tabs:has(.tab-btn[data-tab="buscar"].active) #perguntasBox {
     background: var(--border);
     color: var(--text);
 }
+/* configurando o imput de confirmaçoes veses que foi cofirmado como resposta */
+.input-config {
+    width: 100%;
+    padding: 11px 13px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg-alt);
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+    font-family: var(--font);
+}
 </style>
 </head>
 <body>
@@ -439,7 +451,7 @@ nav.tabs:has(.tab-btn[data-tab="buscar"].active) #perguntasBox {
         <button type="button" id="btnLimparBusca" class="btn-limpar-busca" aria-label="Limpar busca">×</button>
       </div>
       <select id="filterCategoria"><option value="">Todas as categorias</option></select>
-        <button id="btnBuscar">Buscar</button>
+        <button id="btnBuscar" title="Traduzir Conversa/Voz para Operadores (+ e -)">🧠 Intenção</button>
       </div>
     <div id="perguntasBox" class="perguntas-box"></div>
     <button class="tab-btn active" data-tab="buscar"><span class="tab-icon">🔍</span><span class="tab-label">Buscar</span></button>
@@ -710,6 +722,7 @@ function tokenize(str){
     let t;
     return function(...args){ clearTimeout(t); t = setTimeout(()=>fn.apply(this,args), ms); };
   }
+
   /* ---------------- Módulo de Tolerância a Erros (Fuzzy Search) ---------------- */
   function calcularDistanciaLevenshtein(a, b) {
     if (a.length === 0) return b.length;
@@ -801,11 +814,13 @@ function tokenize(str){
 
     allEntries.forEach(e=>{
       const counts = new Map();
-      extrairCampo(e.titulo, 3, counts);
-      extrairCampo(e.categoria||'', 2, counts);
-      extrairCampo((e.tags||[]).join(' '), 2, counts);
-      extrairCampo(e.causas, 1, counts);
-      extrairCampo(e.sintomasCapitais||'', 50, counts); // A Bomba Matemática
+      
+      // PESOS DE HOLLYWOOD (BM25F Agressivo)
+      extrairCampo(e.titulo, 100, counts); // Se está no título, é ouro puro!
+      extrairCampo((e.tags||[]).join(' '), 50, counts); // Tags são fortíssimas
+      extrairCampo(e.categoria||'', 30, counts);
+      extrairCampo(e.causas, 1, counts); // Causas viram apoio de contexto
+      extrairCampo(e.sintomasCapitais||'', 500, counts); // A Bomba Nuclear!
       
       brutos.set(e.id, counts);
       counts.forEach((_, tok)=> df.set(tok, (df.get(tok)||0)+1));
@@ -889,17 +904,42 @@ function tokenize(str){
     const resultados = candidatos.map(e=>{
       const doc = bayesIndex.docs.get(e.id);
       
-      // Bônus de histórico (Quantas vezes você confirmou que era esse caso na vida real)
-      let score = (e.confirmacoes || 0) * 1.5; 
+      // 1. BM25 Base e Histórico
+      let scoreBm25 = Math.log2(1 + (e.confirmacoes || 0)) * 2; 
+      queryCounts.forEach((qtd, tok)=>{ scoreBm25 += qtd * calcularScoreBM25(doc, tok); });
 
-      // Roda a matemática de ponta do BM25
-      queryCounts.forEach((qtd, tok)=>{ score += qtd * calcularScoreBM25(doc, tok); });
+      // 2. O VIDENTE: Índice Jaccard (Cruzamento de DNA)
+      // Juntamos o texto limpo do caso para comparar com a busca
+      const docText = normalize([e.titulo, e.categoria, (e.tags||[]).join(' '), e.causas].join(' '));
+      const docTokens = new Set(tokenize(docText));
+      const qTokensSet = new Set(tokens);
+      
+      let intersection = 0;
+      qTokensSet.forEach(t => { if(docTokens.has(t)) intersection++; });
+      
+      // Se a sua busca for um texto gigante de 100 palavras e o caso só tiver 2, 
+      // o overlap será 2%. Isso derruba o caso lá pro fundo e limpa o lixo!
+      const jaccardOverlap = intersection / (qTokensSet.size || 1); 
 
-      // Penalidades Severas
+      // 3. ASSINATURA DE DENSIDADE (Estão na mesma frase?)
+      let densidadeBonus = 1;
+      // Se você pesquisou 2 palavras ou mais, e o sistema achou elas...
+      if (tokens.length >= 2 && intersection >= 2) {
+         // Ele cria um rastreador: as palavras estão a até 60 letras de distância uma da outra?
+         const regexDensidade = new RegExp(tokens.join('.{0,60}'), 'i');
+         if (regexDensidade.test(docText)) {
+            densidadeBonus = 2.5; // Multiplicador Quântico! Bateu a frase exata.
+         }
+      }
+
+      // 4. Aplica os multiplicadores do Vidente no Score Final
+      let score = (scoreBm25 * jaccardOverlap) * densidadeBonus;
+
+      // 5. Penalidades Severas (Guilhotinas)
       termosExcluidos.forEach(ex => { if (doc.counts.has(ex)) score -= 100; });
       if (e.sintomasExcludentes) {
         const excludentesEntry = tokenize(e.sintomasExcludentes);
-        if (excludentesEntry.some(exc => tokens.includes(exc))) score -= 1000; // Aniquilação total
+        if (excludentesEntry.some(exc => tokens.includes(exc))) score -= 1000;
       }
 
       return { entry: e, score };
@@ -907,7 +947,26 @@ function tokenize(str){
     
     return resultados.filter(r => r.score > -50).sort((a,b)=> b.score - a.score);
   }
+/* ---------------- Módulo de Intenção Conversacional (Voz -> Operadores) ---------------- */
 
+/* ---------------- Módulo de Intenção Conversacional (Voz -> Operadores) ---------------- */
+  function processarLinguagemNatural(texto) {
+    let limpo = texto;
+
+    // O segredo: Ensinamos o Javascript a tratar todos os acentos como letras unidas!
+    const letrasBR = 'a-z0-9_áàâãéèêíïóôõöúçñ';
+
+    // 1. Dicionário de Negações (Agora imune a cortes no meio de acentos)
+    const negacoes = new RegExp(`\\b(?:n[aã]o\\s+(?:é|e|de|pode\\s+ser|falo\\s+de|fala\\s+de|tem)|sem|nada\\s+de|esquece|descartar|tira|tirando)\\s+(?:o|a|os|as|um|uma)?\\s*([${letrasBR}]{3,})(?=[^${letrasBR}]|$)`, 'gi');
+    limpo = limpo.replace(negacoes, " -$1 ");
+
+    // 2. Dicionário de Obrigações
+    const obrigacoes = new RegExp(`\\b(?:falo\\s+de|falando\\s+de|certeza\\s+(?:que\\s+)?(?:é|e)|s[oó]\\s+pode\\s+ser|trata-se\\s+de|tratase\\s+de|tem\\s+que\\s+ser|com\\s+certeza\\s+(?:é|e))\\s+(?:o|a|os|as|um|uma)?\\s*([${letrasBR}]{3,})(?=[^${letrasBR}]|$)`, 'gi');
+    limpo = limpo.replace(obrigacoes, " +$1 ");
+
+    // 3. Remove excesso de espaços gerados e retorna
+    return limpo.replace(/\s+/g, ' ').trim();
+  }
   function ajusteDiferenciadorParaCaso(entry){
     const respostas = respostasDiferenciadores.get(entry.id);
     if(!respostas || !entry.diferenciadores) return 0;
@@ -1252,6 +1311,9 @@ function renderPerguntasDiferenciadoras(ativos, tokensQuery){
 
         <label for="eCausas">Causas prováveis</label>
         <textarea id="eCausas" style="min-height:200px;" required>${escapeHtml(entry.causas)}</textarea>
+        <label for="eConf" style="color:var(--success);">✅ Vezes que este caso foi Confirmado na oficina</label>
+        <p class="hint" style="margin-top:-6px;">Você pode zerar ou alterar este número se ele estiver viciando a busca.</p>
+        <input id="eConf" class="input-config" type="number" min="0" value="${entry.confirmacoes||0}">
         <label>Diferenciadores (opcional)</label>
         <p class="hint" style="margin-top:-6px;">Perguntas Sim/Não que ajudam a distinguir este caso de outros parecidos durante a busca.</p>
         <div id="difList"></div>
@@ -1292,12 +1354,15 @@ function renderPerguntasDiferenciadoras(ativos, tokensQuery){
           const par = INTENSIDADES[intens] || INTENSIDADES.medio;
           return { pergunta: d.pergunta.trim(), intensidade: intens, logSim: par[0], logNao: par[1] };
         });
-      // E atualize a linha do dbPut para enviar a novidade:
+      // Logo acima do await dbPut, pegue o valor:
+      const confirmacoes = Number(document.getElementById('eConf') ? document.getElementById('eConf').value : (original.confirmacoes||0));
+
+      // No dbPut, atualize a variável confirmacoes:
       await dbPut(STORE_CASOS, { 
          id, titulo, categoria, tags, causas, 
-         sintomasCapitais, sintomasExcludentes, // <-- Adicionado aqui!
+         sintomasCapitais, sintomasExcludentes, 
          dataAdicao: original.dataAdicao||Date.now(), 
-         confirmacoes: original.confirmacoes||0, 
+         confirmacoes, // <-- Mude de original.confirmacoes para a variável que criamos
          diferenciadores 
       });
       fecharModal();
@@ -1633,7 +1698,29 @@ function renderPerguntasDiferenciadoras(ativos, tokensQuery){
   /* ---------------- Eventos de busca ---------------- */
   document.getElementById('searchInput').addEventListener('input', debounce(executarBusca, 180));
   document.getElementById('filterCategoria').addEventListener('change', executarBusca);
-  document.getElementById('btnBuscar').addEventListener('click', executarBusca);
+  
+  // O botão de Buscar agora é o "Tradutor de Voz/Intenção"
+  document.getElementById('btnBuscar').addEventListener('click', () => {
+    const input = document.getElementById('searchInput');
+    const textoOriginal = input.value;
+    
+    if(!textoOriginal) {
+       showToast('Fale ou digite algo primeiro.', 'erro');
+       return;
+    }
+    
+    const textoTraduzido = processarLinguagemNatural(textoOriginal);
+    
+    if(textoOriginal !== textoTraduzido) {
+        input.value = textoTraduzido; // Atualiza a barra com os '+ e -' mágicos
+        showToast('Intenção extraída! Traduzido para os operadores lógicos.', 'ok');
+        executarBusca(); // Roda a busca de novo com a magia ativada
+        input.focus();
+    } else {
+        showToast('Nenhum comando de negação/afirmação detectado na frase.', '');
+    }
+  });
+  
   document.getElementById('searchInput').addEventListener('keydown', (e)=>{ if(e.key==='Enter') executarBusca(); });
 
   document.addEventListener('keydown', (e)=>{
