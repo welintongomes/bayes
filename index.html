@@ -358,7 +358,7 @@ nav.tabs .search-bar {
 
 nav.tabs:has(.tab-btn[data-tab="buscar"].active) .search-bar {
     display: flex;
-    width: 100%;
+    width: 97%;
 }
 nav.tabs {
   position: fixed; bottom:0; left:0; right:0; top:auto;flex-wrap: wrap;
@@ -668,11 +668,17 @@ Verificar parafuso de ar, vazamento de vácuo, vela suja..."></textarea>
     return (str||'').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
   }
 
-  function tokenize(str){
+function tokenize(str){
     if(!str) return [];
-    // Filtro NLP: Quebra as palavras, ignora menores que 2 letras E ignora as StopWords
     return normalize(str).split(/[^a-z0-9]+/i)
-      .filter(t => t.length > 2 && !stopWords.has(t));
+      .filter(t => t.length > 2 && !stopWords.has(t))
+      .map(t => {
+        // Lematização Leve: Tira "s" do plural e "ndo" de gerúndio para agrupar as palavras na matemática!
+        let raiz = t;
+        if(raiz.endsWith('ndo') && raiz.length > 5) raiz = raiz.slice(0, -3);
+        if(raiz.endsWith('s') && raiz.length > 3 && !raiz.endsWith('is') && !raiz.endsWith('os')) raiz = raiz.slice(0, -1);
+        return raiz;
+      });
   }
   function bigramas(tokens){
     const out = [];
@@ -789,13 +795,16 @@ Verificar parafuso de ar, vazamento de vácuo, vela suja..."></textarea>
   }
 
   function calcularScoresBayes(query, categoria){
-    // 1. O FILTRO NEGATIVO: Separa palavras que começam com "-"
     const palavrasCruas = query.split(/\s+/);
+    
+    // 1. O FILTRO NEGATIVO (-) E OBRIGATÓRIO (+)
     const termosExcluidos = palavrasCruas.filter(t => t.startsWith('-') && t.length > 2).map(t => normalize(t.substring(1)));
-    const queryLimpa = palavrasCruas.filter(t => !t.startsWith('-')).join(' ');
+    const termosObrigatorios = palavrasCruas.filter(t => t.startsWith('+') && t.length > 2).map(t => normalize(t.substring(1)));
+    
+    const queryLimpa = palavrasCruas.filter(t => !t.startsWith('-') && !t.startsWith('+')).join(' ');
 
     const tokens = tokensComSinonimos(queryLimpa);
-    if(tokens.length===0 && termosExcluidos.length===0) return [];
+    if(tokens.length===0 && termosExcluidos.length===0 && termosObrigatorios.length===0) return [];
     
     const queryCounts = new Map();
     tokens.forEach(t=> queryCounts.set(t, (queryCounts.get(t)||0)+1));
@@ -803,12 +812,18 @@ Verificar parafuso de ar, vazamento de vácuo, vela suja..."></textarea>
     let base = allEntries;
     if(categoria) base = base.filter(e=> e.categoria===categoria);
 
-    // Filtra casos que tenham algum cruzamento com a query (positiva ou negativa)
     const candidatos = base.filter(e=>{
       const doc = bayesIndex.docs.get(e.id);
       if(!doc) return false;
+      
+      // FUNIL OBRIGATÓRIO: Se o caso NÃO TIVER a palavra com '+', ele é abortado na hora.
+      for(const t of termosObrigatorios) {
+         if(!doc.counts.has(t)) return false; 
+      }
+
       for(const t of queryCounts.keys()) if(doc.counts.has(t)) return true;
       for(const t of termosExcluidos) if(doc.counts.has(t)) return true;
+      for(const t of termosObrigatorios) if(doc.counts.has(t)) return true;
       return false;
     });
 
@@ -1597,44 +1612,44 @@ function destacarTermos(texto, tokens){
       <p style="color:var(--text-faint); max-width:440px; margin:16px auto 0; line-height:1.6; font-size:12.5px;">Tente: usar Google Chrome ou Firefox atualizados, sair do modo anônimo/privado, ou (no iPhone/Safari) abrir este arquivo através de um servidor local em vez de abrir direto do arquivo.</p>
     </div>`;
   }
-// funçao do x na barra de pesquisa
-const searchInput = document.getElementById('searchInput');
-const btnLimparBusca = document.getElementById('btnLimparBusca');
+  // funçao do x na barra de pesquisa
+  const searchInput = document.getElementById('searchInput');
+  const btnLimparBusca = document.getElementById('btnLimparBusca');
 
-function atualizarBotaoLimparBusca() {
-    if (!searchInput || !btnLimparBusca) return;
+  function atualizarBotaoLimparBusca() {
+      if (!searchInput || !btnLimparBusca) return;
 
-    btnLimparBusca.style.display =
-        searchInput.value.trim() ? 'flex' : 'none';
-}
+      btnLimparBusca.style.display =
+          searchInput.value.trim() ? 'flex' : 'none';
+  }
 
-searchInput?.addEventListener('input', atualizarBotaoLimparBusca);
+  searchInput?.addEventListener('input', atualizarBotaoLimparBusca);
 
-btnLimparBusca?.addEventListener('click', () => {
-    searchInput.value = '';
-    searchInput.focus();
-    atualizarBotaoLimparBusca();
-});
-const manageSearch = document.getElementById('manageSearch');
-const btnLimparManageSearch = document.getElementById('btnLimparManageSearch');
+  btnLimparBusca?.addEventListener('click', () => {
+      searchInput.value = '';
+      searchInput.focus();
+      atualizarBotaoLimparBusca();
+  });
+  const manageSearch = document.getElementById('manageSearch');
+  const btnLimparManageSearch = document.getElementById('btnLimparManageSearch');
 
-function atualizarBotaoLimparManageSearch() {
-    if (!manageSearch || !btnLimparManageSearch) return;
+  function atualizarBotaoLimparManageSearch() {
+      if (!manageSearch || !btnLimparManageSearch) return;
 
-    btnLimparManageSearch.style.display =
-        manageSearch.value.trim() ? 'flex' : 'none';
-}
+      btnLimparManageSearch.style.display =
+          manageSearch.value.trim() ? 'flex' : 'none';
+  }
 
-manageSearch?.addEventListener('input', atualizarBotaoLimparManageSearch);
+  manageSearch?.addEventListener('input', atualizarBotaoLimparManageSearch);
 
-btnLimparManageSearch?.addEventListener('click', () => {
-    manageSearch.value = '';
-    manageSearch.focus();
-    atualizarBotaoLimparManageSearch();
+  btnLimparManageSearch?.addEventListener('click', () => {
+      manageSearch.value = '';
+      manageSearch.focus();
+      atualizarBotaoLimparManageSearch();
 
-    // Dispara o mesmo evento que a pesquisa normal usa
-    manageSearch.dispatchEvent(new Event('input', { bubbles: true }));
-});
+      // Dispara o mesmo evento que a pesquisa normal usa
+      manageSearch.dispatchEvent(new Event('input', { bubbles: true }));
+  });
   /* ---------------- Inicialização ---------------- */
   async function init(){
     try{
