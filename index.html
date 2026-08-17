@@ -372,46 +372,6 @@ display: none;
 nav.tabs:has(.tab-btn[data-tab="buscar"].active) #perguntasBox {
     display: block;
 }
-/* para o x na barra de pesquisa */
-.search-input-wrapper {
-    position: relative;
-    flex: 1;
-    min-width: 0;
-}
-
-.search-input-wrapper input {
-    width: 100%;
-    padding-right: 38px;
-}
-
-.btn-limpar-busca {
-    position: absolute;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    
-    width: 26px;
-    height: 26px;
-    padding: 0;
-    
-    display: none;
-    align-items: center;
-    justify-content: center;
-    
-    border: none;
-    border-radius: 50%;
-    background: transparent;
-    color: var(--text-dim);
-    
-    font-size: 22px;
-    line-height: 1;
-    cursor: pointer;
-}
-
-.btn-limpar-busca:hover {
-    background: var(--border);
-    color: var(--text);
-}
 /* configurando o imput de confirmaçoes veses que foi cofirmado como resposta */
 .input-config {
     width: 100%;
@@ -1879,44 +1839,7 @@ function renderPerguntasDiferenciadoras(ativos, tokensQuery){
       <p style="color:var(--text-faint); max-width:440px; margin:16px auto 0; line-height:1.6; font-size:12.5px;">Tente: usar Google Chrome ou Firefox atualizados, sair do modo anônimo/privado, ou (no iPhone/Safari) abrir este arquivo através de um servidor local em vez de abrir direto do arquivo.</p>
     </div>`;
   }
-  // funçao do x na barra de pesquisa
-  const searchInput = document.getElementById('searchInput');
-  const btnLimparBusca = document.getElementById('btnLimparBusca');
-
-  function atualizarBotaoLimparBusca() {
-      if (!searchInput || !btnLimparBusca) return;
-
-      btnLimparBusca.style.display =
-          searchInput.value.trim() ? 'flex' : 'none';
-  }
-
-  searchInput?.addEventListener('input', atualizarBotaoLimparBusca);
-
-  btnLimparBusca?.addEventListener('click', () => {
-      searchInput.value = '';
-      searchInput.focus();
-      atualizarBotaoLimparBusca();
-  });
-  const manageSearch = document.getElementById('manageSearch');
-  const btnLimparManageSearch = document.getElementById('btnLimparManageSearch');
-
-  function atualizarBotaoLimparManageSearch() {
-      if (!manageSearch || !btnLimparManageSearch) return;
-
-      btnLimparManageSearch.style.display =
-          manageSearch.value.trim() ? 'flex' : 'none';
-  }
-
-  manageSearch?.addEventListener('input', atualizarBotaoLimparManageSearch);
-
-  btnLimparManageSearch?.addEventListener('click', () => {
-      manageSearch.value = '';
-      manageSearch.focus();
-      atualizarBotaoLimparManageSearch();
-
-      // Dispara o mesmo evento que a pesquisa normal usa
-      manageSearch.dispatchEvent(new Event('input', { bubbles: true }));
-  });
+  
   /* ---------------- Inicialização ---------------- */
   async function init(){
     try{
