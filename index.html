@@ -710,7 +710,50 @@ function tokenize(str){
     let t;
     return function(...args){ clearTimeout(t); t = setTimeout(()=>fn.apply(this,args), ms); };
   }
+  /* ---------------- Módulo de Tolerância a Erros (Fuzzy Search) ---------------- */
+  function calcularDistanciaLevenshtein(a, b) {
+    if (a.length === 0) return b.length;
+    if (b.length === 0) return a.length;
+    const matriz = [];
+    for (let i = 0; i <= b.length; i++) matriz[i] = [i];
+    for (let j = 0; j <= a.length; j++) matriz[0][j] = j;
+    for (let i = 1; i <= b.length; i++) {
+      for (let j = 1; j <= a.length; j++) {
+        if (b.charAt(i - 1) === a.charAt(j - 1)) matriz[i][j] = matriz[i - 1][j - 1];
+        else {
+          matriz[i][j] = Math.min(
+            matriz[i - 1][j - 1] + 1, // Substituição de letra
+            Math.min(matriz[i][j - 1] + 1, // Inserção de letra
+                     matriz[i - 1][j] + 1) // Deleção de letra
+          );
+        }
+      }
+    }
+    return matriz[b.length][a.length];
+  }
 
+  // O Detetive que tenta consertar a palavra digitada errada
+  function corrigirErrosDigitacaoToken(limpa) {
+    // Se a palavra for muito curta ou JÁ existir perfeitamente no banco, não faz nada!
+    if (!bayesIndex || !bayesIndex.vocab || limpa.length < 4 || bayesIndex.idf.has(limpa)) return limpa;
+    
+    let melhorPalavra = limpa;
+    let menorDistancia = Infinity;
+    // Permite errar 1 letra em palavras curtas e 2 letras em palavras compridas
+    const toleranciaMax = limpa.length <= 5 ? 1 : 2; 
+
+    for (const termo of bayesIndex.vocab) {
+      // Otimização: ignora se a diferença de tamanho for muito absurda
+      if (Math.abs(termo.length - limpa.length) > toleranciaMax) continue;
+      
+      const dist = calcularDistanciaLevenshtein(limpa, termo);
+      if (dist < menorDistancia && dist <= toleranciaMax) {
+        menorDistancia = dist;
+        melhorPalavra = termo;
+      }
+    }
+    return melhorPalavra; // Retorna a palavra "consertada"
+  }
   /* ---------------- Sinônimos ---------------- */
   function aplicarSinonimosTexto(texto){
     let t = normalize(texto);
@@ -747,7 +790,7 @@ function tokenize(str){
     return Array.from(termos);
   }
 
-  /* ---------------- Índice Naive Bayes (TF-IDF + bigramas) ---------------- */
+  /* ---------------- Índice Okapi BM25 (O Padrão-Ouro da Pesquisa) ---------------- */
   function construirIndiceBayes(){
     const brutos = new Map();
     const df = new Map();
@@ -762,48 +805,66 @@ function tokenize(str){
       extrairCampo(e.categoria||'', 2, counts);
       extrairCampo((e.tags||[]).join(' '), 2, counts);
       extrairCampo(e.causas, 1, counts);
-      // NOVA LINHA DA BOMBA MATEMÁTICA: Peso 50!
-      extrairCampo(e.sintomasCapitais||'', 50, counts);
+      extrairCampo(e.sintomasCapitais||'', 50, counts); // A Bomba Matemática
+      
       brutos.set(e.id, counts);
       counts.forEach((_, tok)=> df.set(tok, (df.get(tok)||0)+1));
     });
 
     const N = allEntries.length || 1;
     const idf = new Map();
-    df.forEach((freq, tok)=> idf.set(tok, Math.log((N+1)/(freq+1)) + 1));
-
-    const docs = new Map();
-    const vocab = new Set();
-    brutos.forEach((counts, id)=>{
-      const pesados = new Map();
-      let total = 0;
-      counts.forEach((peso, tok)=>{
-        const w = peso * (idf.get(tok)||1);
-        pesados.set(tok, w);
-        total += w;
-        vocab.add(tok);
-      });
-      docs.set(id, { counts: pesados, total: total||1 });
+    
+    // IDF Fórmula avançada do BM25
+    df.forEach((freq, tok)=> {
+       const valorIdf = Math.log(1 + (N - freq + 0.5) / (freq + 0.5));
+       idf.set(tok, Math.max(0.01, valorIdf)); // Nunca deixa o peso ficar negativo
     });
 
-    bayesIndex = { vocabSize: vocab.size || 1, docs, idf };
+    const docs = new Map();
+    let somaTotalTamanho = 0;
+    
+    // Calcula o tamanho de cada documento para punir textos gigantes e premiar textos diretos
+    brutos.forEach((counts, id)=>{
+      let tamanhoDoc = 0;
+      counts.forEach(peso => tamanhoDoc += peso);
+      somaTotalTamanho += tamanhoDoc;
+      docs.set(id, { counts: counts, total: tamanhoDoc || 1 });
+    });
+
+    // Salvamos a lista de palavras (vocab) para o Corretor Ortográfico consultar depois
+    bayesIndex = { docs, idf, vocab: Array.from(idf.keys()), avgdl: (somaTotalTamanho / N) || 1 };
   }
 
-  function logLikelihoodTermo(doc, token){
-    const count = doc.counts.get(token) || 0;
-    return Math.log((count + ALPHA) / (doc.total + ALPHA * bayesIndex.vocabSize));
+  function calcularScoreBM25(doc, token){
+    const freq = doc.counts.get(token) || 0;
+    if (freq === 0) return 0;
+    
+    const idf = bayesIndex.idf.get(token) || 0;
+    const k1 = 1.5; // Ponto de saturação (Evita trapaça de repetição da mesma palavra)
+    const b = 0.75; // Fator de balanço entre textos curtos e longos
+    
+    const numerador = freq * (k1 + 1);
+    const denominador = freq + k1 * (1 - b + b * (doc.total / bayesIndex.avgdl));
+    
+    return idf * (numerador / denominador);
   }
 
   function calcularScoresBayes(query, categoria){
     const palavrasCruas = query.split(/\s+/);
     
-    // 1. O FILTRO NEGATIVO (-) E OBRIGATÓRIO (+)
-    const termosExcluidos = palavrasCruas.filter(t => t.startsWith('-') && t.length > 2).map(t => normalize(t.substring(1)));
-    const termosObrigatorios = palavrasCruas.filter(t => t.startsWith('+') && t.length > 2).map(t => normalize(t.substring(1)));
-    
+    // 1. O FILTRO NEGATIVO E OBRIGATÓRIO (Com correção ortográfica injetada!)
+    const termosExcluidos = palavrasCruas.filter(t => t.startsWith('-') && t.length > 2)
+        .map(t => corrigirErrosDigitacaoToken(normalize(t.substring(1))));
+        
+    const termosObrigatorios = palavrasCruas.filter(t => t.startsWith('+') && t.length > 2)
+        .map(t => corrigirErrosDigitacaoToken(normalize(t.substring(1))));
+        
     const queryLimpa = palavrasCruas.filter(t => !t.startsWith('-') && !t.startsWith('+')).join(' ');
 
-    const tokens = tokensComSinonimos(queryLimpa);
+    // 2. Conserta o resto da frase (O milagre da digitação com pressa)
+    const queryCorrigida = queryLimpa.split(/\s+/).map(t => corrigirErrosDigitacaoToken(normalize(t))).join(' ');
+
+    const tokens = tokensComSinonimos(queryCorrigida);
     if(tokens.length===0 && termosExcluidos.length===0 && termosObrigatorios.length===0) return [];
     
     const queryCounts = new Map();
@@ -816,10 +877,8 @@ function tokenize(str){
       const doc = bayesIndex.docs.get(e.id);
       if(!doc) return false;
       
-      // FUNIL OBRIGATÓRIO: Se o caso NÃO TIVER a palavra com '+', ele é abortado na hora.
-      for(const t of termosObrigatorios) {
-         if(!doc.counts.has(t)) return false; 
-      }
+      // O Funil Absoluto: Exige que a palavra do operador '+' exista
+      for(const t of termosObrigatorios) { if(!doc.counts.has(t)) return false; }
 
       for(const t of queryCounts.keys()) if(doc.counts.has(t)) return true;
       for(const t of termosExcluidos) if(doc.counts.has(t)) return true;
@@ -829,34 +888,26 @@ function tokenize(str){
 
     const resultados = candidatos.map(e=>{
       const doc = bayesIndex.docs.get(e.id);
-      let score = Math.log(1 + K_CONFIRMACAO * (e.confirmacoes||0));
+      
+      // Bônus de histórico (Quantas vezes você confirmou que era esse caso na vida real)
+      let score = (e.confirmacoes || 0) * 1.5; 
 
-      // 1. Somatória normal das probabilidades TF-IDF
-      queryCounts.forEach((qtd, tok)=>{ score += qtd * logLikelihoodTermo(doc, tok); });
+      // Roda a matemática de ponta do BM25
+      queryCounts.forEach((qtd, tok)=>{ score += qtd * calcularScoreBM25(doc, tok); });
 
-      // 2. FILTRO NEGATIVO: Se o caso tiver a palavra que o usuário negou (-bateria), afunda o score
-      termosExcluidos.forEach(ex => {
-        if (doc.counts.has(ex)) {
-           score -= 100; // Penalidade Severa (joga pro fundo da lista)
-        }
-      });
-
-      // 3. A GUILHOTINA (Sintoma Excludente)
+      // Penalidades Severas
+      termosExcluidos.forEach(ex => { if (doc.counts.has(ex)) score -= 100; });
       if (e.sintomasExcludentes) {
         const excludentesEntry = tokenize(e.sintomasExcludentes);
-        // Se a busca cruzar com o Excludente, a probabilidade é aniquilada!
-        if (excludentesEntry.some(exc => tokens.includes(exc))) {
-           score -= 1000; // Penalidade Absoluta (Zera a probabilidade)
-        }
+        if (excludentesEntry.some(exc => tokens.includes(exc))) score -= 1000; // Aniquilação total
       }
 
       return { entry: e, score };
     });
     
-    // Filtra tudo que caiu na Guilhotina ou foi excluído para nem aparecer na tela
     return resultados.filter(r => r.score > -50).sort((a,b)=> b.score - a.score);
   }
-  
+
   function ajusteDiferenciadorParaCaso(entry){
     const respostas = respostasDiferenciadores.get(entry.id);
     if(!respostas || !entry.diferenciadores) return 0;
@@ -864,7 +915,8 @@ function tokenize(str){
     respostas.forEach((resp, idx)=>{
       const d = entry.diferenciadores[idx];
       if(!d) return;
-      soma += resp==='sim' ? (d.logSim||0) : (d.logNao||0);
+      // Amplificamos o peso das perguntas para combinar com a nova escala do BM25
+      soma += resp==='sim' ? ((d.logSim * 2) || 0) : ((d.logNao * 2) || 0);
     });
     return soma;
   }
@@ -872,7 +924,8 @@ function tokenize(str){
   function softmaxPercent(items){
     if(items.length===0) return [];
     const max = Math.max(...items.map(i=>i.score));
-    const exps = items.map(i=> Math.exp(i.score - max));
+    const T = 2.5; // Temperatura que suaviza a conversão do BM25 para Porcentagem %
+    const exps = items.map(i=> Math.exp((i.score - max) / T));
     const soma = exps.reduce((a,b)=>a+b,0);
     return exps.map(v=> (v/soma)*100);
   }
@@ -1019,52 +1072,77 @@ function destacarTermos(texto, tokens){
     }).join('') + '</div>';
   }
 
-  function renderPerguntasDiferenciadoras(ativos, tokensQuery){
+function renderPerguntasDiferenciadoras(ativos, tokensQuery){
     const box = document.getElementById('perguntasBox');
     if(!box) return;
     if(ativos.length < 2){ box.innerHTML=''; return; }
-    const top = ativos.slice(0,4);
+
+    // Pega os principais suspeitos (top 6 é o número mágico para divisão estatística)
+    const top = ativos.slice(0, 6);
+    const totalSuspeitos = top.length;
+
     const jaConsultados = new Set(tokensQuery);
-    const candidatosTermo = new Map();
-    top.forEach(r=>{
+    const presencaToken = new Map(); // Conta em quantos suspeitos cada palavra aparece
+
+    top.forEach(r => {
       const doc = bayesIndex.docs.get(r.entry.id);
       if(!doc) return;
-      doc.counts.forEach((cnt, tok)=>{
-        if(jaConsultados.has(tok) || tok.length<3) return;
-        if(!candidatosTermo.has(tok)) candidatosTermo.set(tok, []);
-        candidatosTermo.get(tok).push(cnt/doc.total);
+      doc.counts.forEach((cnt, tok) => {
+        if(jaConsultados.has(tok) || tok.length < 3) return;
+        presencaToken.set(tok, (presencaToken.get(tok) || 0) + 1);
       });
     });
+
     const pontuados = [];
-    candidatosTermo.forEach((freqs, tok)=>{
-      const completos = freqs.slice();
-      while(completos.length < top.length) completos.push(0);
-      completos.sort((a,b)=> b-a);
-      const spread = completos[0]-completos[1];
-      if(spread > 0.01) pontuados.push({ tok, spread });
+    presencaToken.forEach((qtd, tok) => {
+      // A Mágica de Claude Shannon: Cálculo de Entropia (Ganho de Informação)
+      const p = qtd / totalSuspeitos;
+
+      // Se aparece em todos (p=1) ou em nenhum (p=0), a pergunta é inútil (Entropia = 0)
+      if (p === 1.0 || p === 0.0) return;
+
+      // Fórmula da Entropia em Bits: E = -p * log2(p) - (1-p) * log2(1-p)
+      const entropia = -p * Math.log2(p) - (1 - p) * Math.log2(1 - p);
+
+      // Desempate de Ouro: Multiplica a entropia pela raridade (IDF) do BM25. 
+      // Assim o sistema prefere perguntar sobre peças raras do que palavras genéricas.
+      const idf = bayesIndex.idf.get(tok) || 1;
+      const scoreFinal = entropia * idf;
+
+      pontuados.push({ tok, scoreFinal });
     });
-    pontuados.sort((a,b)=> b.spread-a.spread);
-    const melhores = pontuados.slice(0,5);
-    if(melhores.length===0){ box.innerHTML=''; return; }
+
+    // Ordena para que a pergunta mais fatal e decisiva fique em primeiro lugar
+    pontuados.sort((a,b) => b.scoreFinal - a.scoreFinal);
+
+    const melhores = pontuados.slice(0, 5);
+    if(melhores.length === 0){ box.innerHTML=''; return; }
+
     box.innerHTML =
-  '<div class="perguntas-label">💡 Dicas Isso Abaixo também acontece? (ajuda a filtrar a busca)</div>' +
+  '<div class="perguntas-label">🔮 O Efeito Akinator (Clique abaixo, elimine suspeitos, filtre melhor):</div>' +
   '<div class="perguntas-chips">' +
-  melhores.map(p=> `<button type="button" class="chip-pergunta" data-token="${escapeHtml(p.tok.replace(/_/g,' '))}">+ ${escapeHtml(p.tok.replace(/_/g,' '))}</button>`).join('') +
+    melhores.map(p => {
+      const nomeAmigavel = escapeHtml(p.tok.replace(/_/g,' '));
+      return `<button type="button" class="chip-pergunta" data-token="${nomeAmigavel}">+ Exigir "${nomeAmigavel}"</button>`;
+    }).join('') +
   '</div>';
   }
-
+  
   document.addEventListener('click', (e)=>{
-    const chip = e.target.closest('.chip-pergunta');
-    if(chip){
-      const tok = chip.dataset.token;
-      const input = document.getElementById('searchInput');
-      const atual = input.value.trim();
-      const jaTem = normalize(atual).includes(normalize(tok));
-      if(!jaTem) input.value = (atual + ' ' + tok).trim();
-      executarBusca();
-      input.focus();
-      return;
-    }
+      const chip = e.target.closest('.chip-pergunta');
+      if(chip){
+        const tok = chip.dataset.token;
+        const input = document.getElementById('searchInput');
+        const atual = input.value.trim();
+        const jaTem = normalize(atual).includes(normalize(tok));
+        
+        // Quando clicar, ele insere um "+" na frente da palavra, acionando o funil absoluto!
+        if(!jaTem) input.value = (atual + ' +' + tok).trim(); 
+        
+        executarBusca();
+        input.focus();
+        return;
+      }
     const btn = e.target.closest('[data-action]');
     if(!btn) return;
     const action = btn.dataset.action;
