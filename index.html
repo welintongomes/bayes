@@ -103,8 +103,8 @@
     }
     button { cursor:pointer; font-family: var(--font); }
     #btnBuscar {
-      padding:14px 22px; border-radius: var(--radius-sm); border:none;
-      background: var(--accent); color:#1a0e02; font-weight:800; font-size:14.5px; letter-spacing:.3px;
+      padding: 9px 11px; border-radius: var(--radius-sm); border:none;
+      background: var(--accent); color:#1a0e02; font-weight:800; font-size:12.5px; letter-spacing:.3px;
     }
     #btnBuscar:active { transform: scale(.98); }
 
@@ -424,6 +424,40 @@ nav.tabs:has(.tab-btn[data-tab="buscar"].active) #perguntasBox {
     outline: none;
     font-family: var(--font);
 }
+/* barras de pesquisas */
+/* Barras de Pesquisa com X */
+    .input-wrapper { position: relative;  display: flex; width: 100%; }
+    .input-wrapper input { width: 100%; padding-right: 40px !important; }
+    .btn-clear {
+      position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+      background: transparent; border: none; color: var(--text-faint);
+      font-size: 16px; cursor: pointer; display: none; padding: 4px;
+      font-family: var(--font);
+    }
+    .btn-clear:hover { color: var(--danger); }
+
+    /* Novo Layout do Sherlock */
+    .sherlock-controls { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+    .sherlock-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+    .chip-cat {
+      padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border);
+      background: var(--bg-alt); color: var(--text-dim); font-size: 12px; cursor: pointer; font-weight:700;
+    }
+    .chip-cat.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+    
+    /* Efeito de Clique nos Resultados do Sherlock */
+    .sherlock-item { cursor: pointer; transition: transform 0.15s, border-color 0.15s; border-left: 4px solid var(--accent); }
+    .sherlock-item:hover { transform: translateX(5px); border-color: var(--success); }
+    #manageCategoria{
+      padding: 5px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text-dim);
+    font-size: 13.5px;
+    max-width: 85px;
+    font-family: var(--mono);
+    }
 </style>
 </head>
 <body>
@@ -446,11 +480,11 @@ nav.tabs:has(.tab-btn[data-tab="buscar"].active) #perguntasBox {
 
   <nav class="tabs" id="tabs">
     <div class="search-bar">
-        <div class="search-input-wrapper">
-        <input id="searchInput" type="text" placeholder="Ex: jet ski GTI 130 só liga fora da água" autocomplete="off">
-        <button type="button" id="btnLimparBusca" class="btn-limpar-busca" aria-label="Limpar busca">×</button>
-      </div>
-      <select id="filterCategoria"><option value="">Todas as categorias</option></select>
+        <div class="input-wrapper">
+          <input id="searchInput" type="text" placeholder="Ex: jet ski GTI 130 só liga fora da água" autocomplete="off">
+          <button type="button" class="btn-clear" id="clearSearch">✕</button>
+        </div>
+        <select id="filterCategoria"><option value="">Todas as categorias</option></select>
         <button id="btnBuscar" title="Traduzir Conversa/Voz para Operadores (+ e -)">🧠 Intenção</button>
       </div>
     <div id="perguntasBox" class="perguntas-box"></div>
@@ -507,30 +541,37 @@ Verificar parafuso de ar, vazamento de vácuo, vela suja..."></textarea>
         <div id="quickPreview"></div>
       </div>
     </section>
-<!-- SHERLOCK HOLMES -->
+
+    <!-- SHERLOCK HOLMES -->
     <section id="tab-sherlock" class="tab-panel">
       <div class="card destaque">
         <h3>🕵️ A Inteligência Oculta da Oficina</h3>
-        <p class="hint">O algoritmo rastreia todos os seus casos, cruzando defeitos, categorias e tags para encontrar padrões que os olhos humanos deixam passar.</p>
-        <button type="button" id="btnInvestigar" class="btn-primary" style="width: 100%; margin-bottom: 16px;">🔍 Iniciar Investigação Profunda</button>
-        <div id="sherlockResultados" style="display:flex; flex-direction:column; gap:10px;">
-           <div class="empty">Clique no botão acima para o Sherlock analisar os dados da sua oficina.</div>
+        <p class="hint">Descubra peças e defeitos que costumam falhar juntos. Clique em um padrão para investigá-lo na busca principal!</p>
+
+        <div class="sherlock-controls">
+          <div class="input-wrapper">
+            <input id="sherlockSearch" type="text" placeholder="Filtrar padrões (ex: bomba, rele)..." autocomplete="off">
+            <button type="button" class="btn-clear" id="clearSherlock">✕</button>
+          </div>
+          <div class="sherlock-chips" id="sherlockCategorias">
+             <!-- Chips gerados via JS -->
+          </div>
         </div>
+
+        <div id="sherlockResultados" style="display:flex; scrollbar-width: none; overflow-y: auto; max-height: 46vh; flex-direction:column; gap:10px;"></div>
       </div>
     </section>
     <!-- GERENCIAR -->
     <section id="tab-gerenciar" class="tab-panel">
       <div class="manage-toolbar">
-        
-        <div class="search-input-wrapper">
-    <input id="manageSearch" type="text" placeholder="Filtrar por título ou categoria...">
-    <button type="button" id="btnLimparManageSearch" class="btn-limpar-busca" aria-label="Limpar filtro">×</button>
-</div>
-        <select id="manageCategoria" style="padding: 13px 12px;border-radius: var(--radius-sm);border: 1px solid var(--border);background: var(--panel);
-         color: var(--text-dim);font-size: 13.5px;max-width: 85px;font-family: var(--mono);"><option value="">Todas as categorias</option></select>
+        <div class="input-wrapper">
+          <input id="manageSearch" type="text" placeholder="Filtrar por título ou categoria...">
+          <button type="button" class="btn-clear" id="clearManage">✕</button>
+        </div>
+        <select id="manageCategoria"><option value="">Todas as categorias</option></select>
         <span id="manageCount"></span>
       </div>
-      <div id="manageList" class="manage-list"></div>
+      <div id="manageList" class="manage-list" style="overflow-y: auto; max-height: 60vh;"></div>
     </section>
 
     <!-- DADOS -->
@@ -669,6 +710,19 @@ Verificar parafuso de ar, vazamento de vácuo, vela suja..."></textarea>
   }
 
 /* ---------------- Utils ---------------- */
+/* ---------------- Botões de Limpar (X) ---------------- */
+  function setupClearButton(inputId, btnId, callback) {
+    const input = document.getElementById(inputId);
+    const btn = document.getElementById(btnId);
+    if(!input || !btn) return;
+    input.addEventListener('input', () => { btn.style.display = input.value ? 'block' : 'none'; });
+    btn.addEventListener('click', () => {
+      input.value = '';
+      btn.style.display = 'none';
+      input.focus();
+      if(callback) callback();
+    });
+  }
   // Lista de NLP (StopWords) - Ignora tudo que for ruído
   const stopWords = new Set([
     'o','a','e','de','do','da','em','um','uma','para','com','que','na','no',
@@ -1491,60 +1545,108 @@ function renderPerguntasDiferenciadoras(ativos, tokensQuery){
   }
   document.getElementById('manageSearch').addEventListener('input', debounce(()=>{ manageLimit=150; renderGerenciar(); }, 150));
   document.getElementById('manageCategoria').addEventListener('change', ()=>{ manageLimit=150; renderGerenciar(); });
-/* ---------------- O Efeito Sherlock ---------------- */
-  document.getElementById('btnInvestigar').addEventListener('click', ()=>{
-    const box = document.getElementById('sherlockResultados');
-    box.innerHTML = '<p class="hint">Processando matriz de co-ocorrência...</p>';
-    
-    setTimeout(() => {
-      const coOcorrencias = {};
-      let totalConexoes = 0;
+/* ---------------- O Efeito Sherlock (Tempo Real + Clique) ---------------- */
+  let sherlockCategoriaAtiva = '';
 
-      allEntries.forEach(e => {
-        // Cruza as tags de cada caso para achar padrões
-        const tags = (e.tags || []).map(t => escapeHtml(t.trim().toUpperCase()));
-        if (e.categoria) tags.push(escapeHtml(e.categoria.toUpperCase())); // Mistura categoria também
-
-        for(let i = 0; i < tags.length; i++){
-          for(let j = i + 1; j < tags.length; j++){
-            if(tags[i] === tags[j]) continue;
-            // Cria um par único organizado em ordem alfabética
-            const par = [tags[i], tags[j]].sort().join(' 🔗 ');
-            coOcorrencias[par] = (coOcorrencias[par] || 0) + (1 + (e.confirmacoes || 0) * 0.5); // Casos confirmados pesam mais!
-            totalConexoes++;
-          }
-        }
-      });
-
-      const paresOrdenados = Object.entries(coOcorrencias).sort((a,b) => b[1] - a[1]);
-      const topPares = paresOrdenados.filter(p => p[1] >= 2).slice(0, 10); // Pega os 10 padrões mais fortes
-
-      if(topPares.length === 0){
-        box.innerHTML = '<div class="empty">Poucos dados cruzados. Adicione mais Tags e Categorias nos seus casos para gerar padrões!</div>';
-        return;
-      }
-
-      box.innerHTML = topPares.map((p, index) => {
-        const termos = p[0].split(' 🔗 ');
-        return `
-        <div class="dif-item" style="border-left: 4px solid var(--accent); padding-left:14px; background:var(--card);">
-          <div style="font-size: 13.5px;">
-            <b>Padrão #${index + 1}:</b> Alta incidência conjunta entre <span class="badge">${termos[0]}</span> e <span class="badge">${termos[1]}</span>.
-          </div>
-          <div style="font-size: 11.5px; color: var(--text-faint); margin-top: 4px;">Sempre que suspeitar de um, investigue o outro.</div>
-        </div>`;
-      }).join('');
-    }, 300); // Um pequeno delay para dar a sensação de processamento de IA
+  // Quando você clica em um chip de categoria no Sherlock
+  document.addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip-cat');
+    if(chip) {
+       sherlockCategoriaAtiva = chip.dataset.cat;
+       popularFiltrosCategoria(); // Re-pinta os chips
+       executarSherlock();
+    }
   });
+
+  // O "Gatilho" para mandar a investigação para a Aba Buscar
+  document.addEventListener('click', (e) => {
+    const item = e.target.closest('.sherlock-item');
+    if (item) {
+       const t1 = item.dataset.t1;
+       const t2 = item.dataset.t2;
+       const searchInput = document.getElementById('searchInput');
+       
+       // Seta a busca (Ex: "Bomba Relé") e altera a categoria na busca principal!
+       searchInput.value = `${t1} ${t2}`;
+       document.getElementById('clearSearch').style.display = 'block';
+       document.getElementById('filterCategoria').value = sherlockCategoriaAtiva;
+       
+       mudarAba('buscar');
+       executarBusca();
+       showToast('🔍 Investigação aprofundada ativada!', 'ok');
+    }
+  });
+
+  function executarSherlock() {
+    const box = document.getElementById('sherlockResultados');
+    if(!box) return;
+    
+    const coOcorrencias = {};
+    const termoBuscado = normalize(document.getElementById('sherlockSearch').value);
+
+    // Filtra só a categoria que você clicou no Chip
+    let base = sherlockCategoriaAtiva ? allEntries.filter(e => e.categoria === sherlockCategoriaAtiva) : allEntries;
+
+    base.forEach(e => {
+      const tags = (e.tags || []).map(t => escapeHtml(t.trim().toUpperCase()));
+      if (e.categoria && !sherlockCategoriaAtiva) tags.push(escapeHtml(e.categoria.toUpperCase())); 
+
+      for(let i = 0; i < tags.length; i++){
+        for(let j = i + 1; j < tags.length; j++){
+          if(tags[i] === tags[j]) continue;
+          const par = [tags[i], tags[j]].sort().join(' 🔗 ');
+          coOcorrencias[par] = (coOcorrencias[par] || 0) + (1 + (e.confirmacoes || 0) * 0.5);
+        }
+      }
+    });
+
+    let paresOrdenados = Object.entries(coOcorrencias).sort((a,b) => b[1] - a[1]);
+
+    // Aplica o filtro da barrinha de pesquisa do Sherlock
+    if (termoBuscado) {
+        paresOrdenados = paresOrdenados.filter(p => normalize(p[0]).includes(termoBuscado));
+    }
+
+    const topPares = paresOrdenados.filter(p => p[1] >= 1.5).slice(0, 20);
+
+    if(topPares.length === 0){
+      box.innerHTML = '<div class="empty">Nenhum padrão encontrado com estes filtros.</div>';
+      return;
+    }
+
+    box.innerHTML = topPares.map((p, index) => {
+      const termos = p[0].split(' 🔗 ');
+      return `
+      <div class="dif-item sherlock-item" data-t1="${termos[0]}" data-t2="${termos[1]}">
+        <div style="font-size: 13.5px; margin-bottom: 5px;">
+          <b>Padrão #${index + 1}:</b> Forte incidência entre <span class="badge">${termos[0]}</span> e <span class="badge">${termos[1]}</span>.
+        </div>
+        <div style="font-size: 11.5px; color: var(--text-faint);">Clique para investigar a fundo os casos que contêm as duas peças ➔</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Ativa a pesquisa em tempo real do Sherlock
+  document.getElementById('sherlockSearch').addEventListener('input', debounce(executarSherlock, 150));
+
   /* ---------------- Categorias / stats ---------------- */
   function popularFiltrosCategoria(){
     const cats = Array.from(new Set(allEntries.map(e=> e.categoria).filter(Boolean))).sort((a,b)=> a.localeCompare(b,'pt-BR'));
+    
+    // Atualiza Selects
     [document.getElementById('filterCategoria'), document.getElementById('manageCategoria')].forEach(sel=>{
       const atual = sel.value;
       sel.innerHTML = '<option value="">Todas as categorias</option>' + cats.map(c=> `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
       if(cats.includes(atual)) sel.value = atual;
     });
     document.getElementById('categoriasList').innerHTML = cats.map(c=> `<option value="${escapeHtml(c)}">`).join('');
+
+    // Cria os Chips do Sherlock dinamicamente
+    let chipsHtml = `<button type="button" class="chip-cat ${sherlockCategoriaAtiva===''?'active':''}" data-cat="">Todas as Categorias</button>`;
+    chipsHtml += cats.map(c => `<button type="button" class="chip-cat ${sherlockCategoriaAtiva===c?'active':''}" data-cat="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('');
+    
+    const container = document.getElementById('sherlockCategorias');
+    if(container) container.innerHTML = chipsHtml;
   }
   function atualizarStatsMini(){
     const totalCasos = allEntries.length;
@@ -1829,6 +1931,13 @@ function renderPerguntasDiferenciadoras(ativos, tokensQuery){
       await refreshCache();
       renderGerenciar();
       renderSinonimosList();
+      // Liga os botões "X"
+      setupClearButton('searchInput', 'clearSearch', executarBusca);
+      setupClearButton('manageSearch', 'clearManage', renderGerenciar);
+      setupClearButton('sherlockSearch', 'clearSherlock', executarSherlock);
+      
+      // Roda o Sherlock pela primeira vez
+      executarSherlock();
       document.getElementById('searchInput').focus();
     }catch(err){
       showToast('Aviso: '+(err && err.message ? err.message : err), 'erro');
