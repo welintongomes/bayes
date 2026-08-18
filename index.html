@@ -418,6 +418,20 @@ nav.tabs:has(.tab-btn[data-tab="buscar"].active) #perguntasBox {
     max-width: 85px;
     font-family: var(--mono);
     }
+    /* Chave Seletora de Voz */
+    .btn-voz {
+      background: var(--bg-alt);
+      border: 1px solid var(--border);
+      color: var(--text-faint);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: var(--font);
+    }
+    .btn-voz:hover { filter: brightness(1.2); }
 </style>
 </head>
 <body>
@@ -427,8 +441,9 @@ nav.tabs:has(.tab-btn[data-tab="buscar"].active) #perguntasBox {
     <div class="brand">
       <div class="logo">🔧</div>
       <div class="brand-text">
-        <h1>Diagnóstico Mestre</h1>
-        <small>banco de causas · oficina</small>
+        <h1>Diagnóstico<!-- Coloque isso no seu cabeçalho (header) -->
+      <button id="btnVoz" class="btn-voz" title="Ativar/Desativar Leitura Automática">🔇 Voz: OFF</button></h1>
+        <small>banco de causas</small>
       </div>
     </div>
     <div id="statsMini">carregando…</div>
@@ -670,6 +685,67 @@ Verificar parafuso de ar, vazamento de vácuo, vela suja..."></textarea>
   }
 
 /* ---------------- Utils ---------------- */
+/* ---------------- Controle Universal de Voz (Cliques) ---------------- */
+  document.addEventListener('click', (e) => {
+    
+    // 1. Se clicou no botão de FECHAR (X) ou no FUNDO ESCURO do Modal
+    if (e.target.closest('#modalClose') || e.target.id === 'modalOverlay') {
+       window.speechSynthesis.cancel(); // Cala a boca na hora
+    }
+
+    // 2. Se clicou em "VER COMPLETO"
+    const btnVer = e.target.closest('.btn-ver');
+    if (btnVer || e.target.dataset.action === 'ver') {
+       if (leituraAutomatica) {
+          
+          // Pega o ID do caso que está escondido no botão
+          const idCaso = btnVer ? btnVer.dataset.id : e.target.dataset.id;
+          
+          // Procura esse caso exato direto no banco de dados da memória!
+          const caso = allEntries.find(item => item.id == idCaso);
+          
+          if (caso && caso.causas) {
+             // Lê APENAS a descrição do problema, limpinha, direto da fonte
+             lerTexto(caso.causas);
+          }
+       }
+    }
+  });
+/* ---------------- Assistente de Voz (Leitura de Diagnóstico) ---------------- */
+  let leituraAutomatica = localStorage.getItem('vozAtiva') === 'true';
+
+  function configurarBotaoVoz() {
+    const btn = document.getElementById('btnVoz');
+    if (!btn) return;
+
+    const atualizarVisual = () => {
+      btn.innerHTML = leituraAutomatica ? '🔊 Leitura Auto' : '🔇 Leitura OFF';
+      btn.style.color = leituraAutomatica ? 'var(--success)' : 'var(--text-faint)';
+      btn.style.borderColor = leituraAutomatica ? 'var(--success)' : 'var(--border)';
+    };
+
+    atualizarVisual(); // Puxa da memória quando a página abre
+
+    btn.addEventListener('click', () => {
+      leituraAutomatica = !leituraAutomatica;
+      localStorage.setItem('vozAtiva', leituraAutomatica); // Salva na memória do celular
+      atualizarVisual();
+
+      // Se desligou a chave enquanto ela falava, cala a boca do robô na hora!
+      if (!leituraAutomatica) window.speechSynthesis.cancel();
+    });
+  }
+
+  function lerTexto(texto) {
+    window.speechSynthesis.cancel(); // Sempre corta qualquer fala antiga antes de começar uma nova
+    if (!texto) return;
+
+    // Configura a voz (pt-BR)
+    const fala = new SpeechSynthesisUtterance(texto);
+    fala.lang = 'pt-BR';
+    fala.rate = 1.1; // Velocidade um pouquinho mais ágil para não perder tempo
+    window.speechSynthesis.speak(fala);
+  }
 /* ---------------- Extrator Inteligente de Tags e Categoria (Anti-Lixo) ---------------- */
 /* ---------------- Construtor de Títulos VIP ---------------- */
   function gerarTituloInteligente(textoBruto, categoria, tags) {
@@ -2037,6 +2113,7 @@ function executarSherlock() {
       await refreshCache();
       renderGerenciar();
       renderSinonimosList();
+      configurarBotaoVoz();
       // Liga os botões "X"
       setupClearButton('searchInput', 'clearSearch', executarBusca);
       setupClearButton('manageSearch', 'clearManage', renderGerenciar);
