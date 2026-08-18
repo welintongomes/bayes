@@ -398,9 +398,9 @@ nav.tabs:has(.tab-btn[data-tab="buscar"].active) #perguntasBox {
 
     /* Novo Layout do Sherlock */
     .sherlock-controls { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
-    .sherlock-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+    .sherlock-chips { scrollbar-width: none; overflow-x: auto; margin: 4px; display: flex; gap: 6px; flex-wrap: nowrap; }
     .chip-cat {
-      padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border);
+      padding: 6px 14px; white-space: nowrap; border-radius: 20px; border: 1px solid var(--border);
       background: var(--bg-alt); color: var(--text-dim); font-size: 12px; cursor: pointer; font-weight:700;
     }
     .chip-cat.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
@@ -670,6 +670,147 @@ Verificar parafuso de ar, vazamento de vácuo, vela suja..."></textarea>
   }
 
 /* ---------------- Utils ---------------- */
+/* ---------------- Extrator Inteligente de Tags e Categoria (Anti-Lixo) ---------------- */
+/* ---------------- Construtor de Títulos VIP ---------------- */
+  function gerarTituloInteligente(textoBruto, categoria, tags) {
+    // 1. O Padrão Ouro: Constrói o título usando as Tags Oficiais!
+    if (tags && tags.length > 0) {
+      // Pega até as 3 primeiras tags e deixa a primeira letra maiúscula (ex: botao_partida -> Botao Partida)
+      const tagsFormatadas = tags.slice(0, 3).map(t => {
+         return t.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      });
+
+      // Cria a "Etiqueta" da Categoria
+      const prefixo = categoria ? `[${categoria.toUpperCase()}] ` : '⚙️ Caso: ';
+      
+      // Junta tudo
+      let titulo = `${prefixo}Diagnóstico de ${tagsFormatadas.join(', ')}`;
+      
+      // Troca a última vírgula por um "e" para o português ficar elegante
+      titulo = titulo.replace(/,([^,]*)$/, ' e$1'); 
+      return titulo;
+    }
+
+    // 2. Plano B (Se não achou Tags): Guilhotina de Fofoca
+    // Corta todo o lixo conversacional do início do texto para tentar salvar o título
+    let limpo = textoBruto;
+    const lixoInicio = /^(hoje|cliente|chegou|aqui|na|oficina|cara|disse|falou|veio|trouxe|pediu|relatou|que|o|a|um|uma|ate|mim|min)\s+/gi;
+    
+    // Roda a limpeza até o texto começar com algo útil
+    for (let i = 0; i < 4; i++) limpo = limpo.replace(lixoInicio, '').trim();
+
+    limpo = limpo.charAt(0).toUpperCase() + limpo.slice(1);
+    
+    // Pega só as primeiras 6 palavras do problema real
+    const pedacos = limpo.split(/\s+/);
+    return pedacos.length > 6 ? pedacos.slice(0, 6).join(' ') + '...' : limpo;
+  }
+/* ---------------- Extrator Inteligente de Tags (Vocabulário Controlado + Corretor) ---------------- */
+  function extrairTagsInteligentes(textoSujao) {
+    if (!textoSujao) return '';
+
+    // 1. Mapeia TODAS as Tags Oficiais do seu banco
+    const mapaTags = new Map();
+    allEntries.forEach(e => {
+      if (e.tags) {
+        e.tags.forEach(t => {
+          const tagLimpa = normalize(t.trim());
+          if (tagLimpa.length > 2) mapaTags.set(tagLimpa, t.trim()); 
+        });
+      }
+    });
+
+    if (mapaTags.size === 0) return '';
+
+    // 2. Quebra o desabafo do cliente em tokens (palavras limpas para analisar)
+    const tokensTexto = tokenize(textoSujao);
+    const tagsEncontradas = new Set();
+    const textoSujaoLimpo = normalize(textoSujao);
+
+    // 3. O Detetive Ortográfico: Compara o que o cliente disse com as Tags Oficiais
+    mapaTags.forEach((tagOriginal, tagLimpa) => {
+      // TENTATIVA 1: Match Perfeito (Acertou na mosca a digitação)
+      if (textoSujaoLimpo.includes(tagLimpa)) {
+        tagsEncontradas.add(tagOriginal);
+        return;
+      }
+
+      // TENTATIVA 2: O Milagre do Levenshtein (Fuzzy Search para erros)
+      const tokensTag = tagLimpa.split(/\s+/); // Se a tag tiver 2 palavras (Ex: "bomba combustivel")
+      let tagBateu = true;
+
+      // Para cada pedaço da tag, procura uma palavra parecida no texto
+      for (const tTag of tokensTag) {
+        if (tTag.length < 3) continue; // Ignora palavras muito curtas como "de", "do"
+        
+        let achouPedaco = false;
+        for (const tTexto of tokensTexto) {
+          if (tTexto === tTag) { 
+              achouPedaco = true; break; 
+          }
+          
+          // A MÁGICA: Mede a distância! Permite errar 1 letra em peças curtas e 2 nas longas
+          const dist = calcularDistanciaLevenshtein(tTexto, tTag);
+          const toleranciaMax = tTag.length <= 5 ? 1 : 2;
+          
+          if (dist <= toleranciaMax) { 
+              achouPedaco = true; break; 
+          }
+        }
+        
+        // Se faltou achar alguma parte da tag, cancela essa tag
+        if (!achouPedaco) { 
+            tagBateu = false; break; 
+        } 
+      }
+
+      // Se achou todos os pedaços (mesmo com erros de digitação), adiciona a Tag Oficial!
+      if (tagBateu) tagsEncontradas.add(tagOriginal);
+    });
+
+    return Array.from(tagsEncontradas).join(', ');
+  }
+function adivinharCategoria(textoSujao) {
+    if (!textoSujao) return '';
+    const categoriasExistentes = Array.from(new Set(allEntries.map(e => e.categoria).filter(Boolean)));
+    // A MÁGICA DE HIERARQUIA: Testa as categorias mais compridas (específicas) primeiro!
+    categoriasExistentes.sort((a, b) => b.length - a.length);
+    const textoLimpo = normalize(textoSujao);
+    const textoSemEspaco = textoLimpo.replace(/\s+/g, ''); // Junta tudo para salvar os espaços errados
+    const tokensTexto = tokenize(textoSujao);
+
+    for (const cat of categoriasExistentes) {
+      const catLimpa = normalize(cat);
+      const catSemEspaco = catLimpa.replace(/\s+/g, '');
+      
+      // 1. TENTATIVA 1: Match Perfeito (Resolve maiúsculas/minúsculas)
+      if (textoLimpo.includes(catLimpa)) return cat;
+      
+      // 2. TENTATIVA 2: Ignorando Espaços (Resolve "jet sky" vs "jetsky")
+      if (catSemEspaco.length > 3 && textoSemEspaco.includes(catSemEspaco)) return cat;
+
+      // 3. TENTATIVA 3: Levenshtein (Erros de digitação, ex: "jestky")
+      const tokensCat = tokenize(cat);
+      if (tokensCat.length === 0) continue;
+      
+      let catBateu = true;
+      for (const tCat of tokensCat) {
+        if (tCat.length < 3) continue;
+        let achouPedaco = false;
+        for (const tTexto of tokensTexto) {
+          if (tTexto === tCat) { achouPedaco = true; break; }
+          const dist = calcularDistanciaLevenshtein(tTexto, tCat);
+          const toleranciaMax = tCat.length <= 5 ? 1 : 2;
+          if (dist <= toleranciaMax) { achouPedaco = true; break; }
+        }
+        if (!achouPedaco) { catBateu = false; break; }
+      }
+      
+      if (catBateu) return cat; // Devolve o nome oficial da categoria, perfeitamente escrito!
+    }
+    
+    return '';
+  }
 /* ---------------- Botões de Limpar (X) ---------------- */
   function setupClearButton(inputId, btnId, callback) {
     const input = document.getElementById(inputId);
@@ -1411,7 +1552,7 @@ function renderPerguntasDiferenciadoras(ativos, tokensQuery){
     return flat.length>60 ? flat.slice(0,60).trim()+'…' : (flat || 'Caso sem título');
   }
 
-  function parseQuickText(text, categoriaPadrao){
+function parseQuickText(text, categoriaPadrao){
     const blocks = text.split(/^[ \t]*-{3,}[ \t]*$/m).map(b=>b.trim()).filter(Boolean);
     return blocks.map(block=>{
       const lines = block.split('\n').map(l=>l.trim());
@@ -1419,19 +1560,42 @@ function renderPerguntasDiferenciadoras(ativos, tokensQuery){
       let categoria = categoriaPadrao || '';
       let tags = [];
       let idx = 1;
+      
       while(idx < lines.length){
         if(/^categoria\s*:/i.test(lines[idx])){ categoria = lines[idx].replace(/^categoria\s*:/i,'').trim(); idx++; continue; }
         if(/^tags?\s*:/i.test(lines[idx])){ tags = lines[idx].replace(/^tags?\s*:/i,'').split(',').map(t=>t.trim()).filter(Boolean); idx++; continue; }
         if(lines[idx]===''){ idx++; continue; }
         break;
       }
+      
       let causas = lines.slice(idx).join('\n').trim();
       if(!causas){ causas = tituloBruto; }
-      const titulo = tituloBruto.length>90 ? tituloBruto.slice(0,90).trim()+'…' : (tituloBruto || tituloAutomatico(causas));
-      return { titulo, categoria, tags, causas };
+      
+      // 1. A IA Adivinha a Categoria
+      if (!categoria) categoria = adivinharCategoria(causas);
+      
+      // 2. A IA Extrai o Vocabulário Controlado (Tags)
+      if (tags.length === 0) {
+         const tagsInteligentes = extrairTagsInteligentes(causas);
+         if (tagsInteligentes) tags = tagsInteligentes.split(',').map(t => t.trim()).filter(Boolean);
+      }
+
+      // 3. O CONSTRUTOR DE TÍTULO VIP
+      let tituloFinal = tituloBruto;
+      
+      // Se a primeira linha for muito grande (textão) OU começar com "conversa fiada", a IA toma o controle do Título!
+      const comecaComFofoca = /^(hoje|cliente|chegou|veio)/i.test(tituloBruto);
+      if (tituloBruto.length > 50 || comecaComFofoca) {
+         tituloFinal = gerarTituloInteligente(causas, categoria, tags);
+      } else {
+         // Mantém o título manual que você digitou (se for curtinho e direto)
+         tituloFinal = tituloBruto.length > 90 ? tituloBruto.slice(0, 90).trim() + '…' : (tituloBruto || gerarTituloInteligente(causas, categoria, tags));
+      }
+
+      return { titulo: tituloFinal, categoria, tags, causas };
     }).filter(b=> b.causas);
   }
-
+  
   document.getElementById('toggleAvancado').addEventListener('click', ()=>{
     const box = document.getElementById('avancadoBox');
     box.style.display = box.style.display==='none' ? 'block' : 'none';
@@ -1537,7 +1701,7 @@ function renderPerguntasDiferenciadoras(ativos, tokensQuery){
     }
   });
 
-  function executarSherlock() {
+function executarSherlock() {
     const box = document.getElementById('sherlockResultados');
     if(!box) return;
     
@@ -1549,28 +1713,48 @@ function renderPerguntasDiferenciadoras(ativos, tokensQuery){
 
     base.forEach(e => {
       const tags = (e.tags || []).map(t => escapeHtml(t.trim().toUpperCase()));
-      if (e.categoria && !sherlockCategoriaAtiva) tags.push(escapeHtml(e.categoria.toUpperCase())); 
+      // Agora a Categoria SEMPRE vira uma tag, garantindo que peças solitárias consigam formar um par!
+      if (e.categoria) tags.push(escapeHtml(e.categoria.toUpperCase()));
 
       for(let i = 0; i < tags.length; i++){
         for(let j = i + 1; j < tags.length; j++){
           if(tags[i] === tags[j]) continue;
           const par = [tags[i], tags[j]].sort().join(' 🔗 ');
-          coOcorrencias[par] = (coOcorrencias[par] || 0) + (1 + (e.confirmacoes || 0) * 0.5);
+          
+          // CRIA O SEPARADOR DE NOTAS
+          if(!coOcorrencias[par]) coOcorrencias[par] = { base: 0, idfScore: 0 };
+
+          // 1. O Voto Base (A prova de que é padrão)
+          const voto = 1 + (e.confirmacoes || 0) * 0.5;
+          coOcorrencias[par].base += voto;
+
+          // 2. O Multiplicador de Raridade (IDF)
+          const idf1 = bayesIndex && bayesIndex.idf ? (bayesIndex.idf.get(normalize(tags[i])) || 1) : 1;
+          const idf2 = bayesIndex && bayesIndex.idf ? (bayesIndex.idf.get(normalize(tags[j])) || 1) : 1;
+          const fatorRaridade = (idf1 + idf2) / 2;
+
+          // 3. A Nota Final com Super-Poderes
+          coOcorrencias[par].idfScore += (voto * fatorRaridade);
         }
       }
     });
 
-    let paresOrdenados = Object.entries(coOcorrencias).sort((a,b) => b[1] - a[1]);
+    // A MÁGICA DA CORREÇÃO ACONTECE AQUI:
+    let paresProcessados = Object.entries(coOcorrencias)
+        // O CADEADO: O par tem que provar que existe (2 ocorrências mínimas ou 1 confirmação)
+        .filter(p => p[1].base >= 1.5) 
+        // Depois que provou, a gente organiza pela Nota de Raridade (IDF)
+        .map(p => [p[0], p[1].idfScore]) 
+        .sort((a,b) => b[1] - a[1]);
 
-    // Aplica o filtro da barrinha de pesquisa do Sherlock
     if (termoBuscado) {
-        paresOrdenados = paresOrdenados.filter(p => normalize(p[0]).includes(termoBuscado));
+        paresProcessados = paresProcessados.filter(p => normalize(p[0]).includes(termoBuscado));
     }
 
-    const topPares = paresOrdenados.filter(p => p[1] >= 1.5).slice(0, 20);
+    const topPares = paresProcessados.slice(0, 20);
 
     if(topPares.length === 0){
-      box.innerHTML = '<div class="empty">Nenhum padrão encontrado com estes filtros.</div>';
+      box.innerHTML = '<div class="empty">Nenhum padrão confirmado encontrado... O Sherlock precisa que peças apareçam juntas em pelo menos 2 casos diferentes para considerar um padrão!</div>';
       return;
     }
 
@@ -1585,7 +1769,6 @@ function renderPerguntasDiferenciadoras(ativos, tokensQuery){
       </div>`;
     }).join('');
   }
-
   // Ativa a pesquisa em tempo real do Sherlock
   document.getElementById('sherlockSearch').addEventListener('input', debounce(executarSherlock, 150));
 
