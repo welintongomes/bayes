@@ -231,10 +231,9 @@
     #manageCount { font-size:11.5px; color:var(--text-faint); white-space:nowrap; font-family:var(--mono); }
     .manage-list { display:flex; flex-direction:column; gap:8px; }
     .manage-item {
-      background:var(--card); border:1px solid var(--border); border-radius:10px;
-      padding:12px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: flex; align-items: flex-end; gap: 10px; flex-wrap: nowrap; flex-direction: row-reverse;
     }
-    .manage-item-info { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:13.5px; }
+    .manage-item-info { display: flex; align-items: stretch; gap: 8px;flex-wrap: wrap;font-size: 13.5px;flex-direction: column;}
     .manage-date { color:var(--text-faint); font-size:11px; font-family:var(--mono); }
     .dif-count-badge { font-family:var(--mono); font-size:10.5px; font-weight:700; color:var(--accent-2); background:var(--accent-2-soft); padding:3px 8px; border-radius:20px; }
     .manage-item-actions { display:flex; gap:4px; }
@@ -432,6 +431,15 @@ nav.tabs:has(.tab-btn[data-tab="buscar"].active) #perguntasBox {
       font-family: var(--font);
     }
     .btn-voz:hover { filter: brightness(1.2); }
+    /* Texto que fala ao ser clicado */
+    .texto-falante {
+      cursor: pointer;
+      border-radius: 4px;
+      transition: background 0.2s ease;
+    }
+    .texto-falante:active {
+      background: var(--accent-soft); /* Dá um brilho quando você clica */
+    }
 </style>
 </head>
 <body>
@@ -736,16 +744,117 @@ Verificar parafuso de ar, vazamento de vácuo, vela suja..."></textarea>
     });
   }
 
-  function lerTexto(texto) {
-    window.speechSynthesis.cancel(); // Sempre corta qualquer fala antiga antes de começar uma nova
-    if (!texto) return;
+/* ---------------- Motor de Voz Sequencial (Modo Rádio + Wake Lock) ---------------- */
+  let filaTextos = [];
+  let indexFila = 0;
+  let travaDeTela = null;
 
-    // Configura a voz (pt-BR)
+  // Função que impede o celular de dormir no meio da leitura
+  async function gerenciarWakeLock(travar) {
+    if (!('wakeLock' in navigator)) return; // Se o navegador for muito antigo, ignora
+    
+    try {
+      if (travar && travaDeTela === null) {
+        travaDeTela = await navigator.wakeLock.request('screen');
+      } else if (!travar && travaDeTela !== null) {
+        await travaDeTela.release();
+        travaDeTela = null;
+      }
+    } catch (e) { 
+      console.log('Falha na trava de tela:', e); 
+    }
+  }
+
+  // O Leitor da Fila
+  function tocarProximoDaFila() {
+    // Se acabou a fila de resultados
+    if (indexFila >= filaTextos.length) {
+      gerenciarWakeLock(false); // Libera a tela para o celular poder descansar
+      return; 
+    }
+
+    window.speechSynthesis.cancel(); // Prevenção
+
+    const texto = filaTextos[indexFila];
     const fala = new SpeechSynthesisUtterance(texto);
     fala.lang = 'pt-BR';
-    fala.rate = 1.1; // Velocidade um pouquinho mais ágil para não perder tempo
+    fala.rate = 1.1;
+
+    // A MÁGICA: Quando terminar de ler este texto, avança para o próximo!
+    fala.onend = () => {
+      indexFila++;
+      tocarProximoDaFila();
+    };
+
+    // Prevenção: Se der algum bug na fala, ele pula pro próximo em vez de travar
+    fala.onerror = () => {
+      indexFila++;
+      tocarProximoDaFila();
+    };
+
     window.speechSynthesis.speak(fala);
   }
+
+  // Interrompe TUDO se o usuário clicar para calar a boca
+  function pararLeitura() {
+    window.speechSynthesis.cancel();
+    filaTextos = [];
+    gerenciarWakeLock(false); // Libera a tela
+  }
+
+// A Porta de Entrada (Blindagem por Identidade de Gêmeos)
+  function acionarLeitura(elementoOuTexto) {
+    if (!leituraAutomatica) return; 
+
+    if (window.speechSynthesis.speaking) {
+      pararLeitura();
+      return;
+    }
+
+    if (typeof elementoOuTexto === 'object' && elementoOuTexto.nodeType) {
+      
+      // A NOVA MÁGICA: O robô olha qual é o "tipo" de texto que você clicou
+      let seletorExato = '.texto-falante'; // Padrão genérico
+      
+      if (elementoOuTexto.classList.contains('snippet')) {
+         seletorExato = '.snippet.texto-falante'; // Busca (Ignora o Modal!)
+      } else if (elementoOuTexto.closest('.manage-item')) {
+         seletorExato = '.manage-item .texto-falante'; // Gerenciar (Ignora o Modal!)
+      } else if (elementoOuTexto.closest('.modal')) {
+         seletorExato = '.modal .texto-falante'; // Modal (Isolado)
+      }
+
+      // Procura APENAS os textos que são "gêmeos idênticos" do que você clicou
+      const todosFalantes = Array.from(document.querySelectorAll(seletorExato))
+                                 .filter(el => el.offsetParent !== null); 
+      
+      const indexClicado = todosFalantes.indexOf(elementoOuTexto);
+      
+      if (indexClicado !== -1) {
+        filaTextos = todosFalantes.slice(indexClicado).map(el => {
+          
+          const idCaso = el.dataset.id;
+          if (idCaso) {
+             const caso = allEntries.find(c => String(c.id) === String(idCaso));
+             if (caso && caso.causas) return caso.causas; 
+          }
+          return el.innerText;
+        });
+      }
+    } 
+    else if (typeof elementoOuTexto === 'string') {
+      filaTextos = [elementoOuTexto];
+    }
+
+    if (filaTextos.length > 0) {
+      indexFila = 0;
+      gerenciarWakeLock(true); 
+      tocarProximoDaFila();
+    }
+  }
+  // A Ponte de Ouro continua com o mesmo nome para não quebrar o seu código antigo!
+  window.lerTexto = acionarLeitura;
+
 /* ---------------- Extrator Inteligente de Tags e Categoria (Anti-Lixo) ---------------- */
 /* ---------------- Construtor de Títulos VIP ---------------- */
   function gerarTituloInteligente(textoBruto, categoria, tags) {
@@ -1307,7 +1416,7 @@ function destacarTermos(texto, tokens){
           </div>
           <div class="prob-bar"><div class="prob-fill" style="width:${Math.max(3,pct)}%"></div><span class="prob-label">🧠 ${pct.toFixed(1)}% · Bayes</span></div>
           ${badgeCapital}
-          <p class="snippet">${trecho}</p>
+          <p class="snippet texto-falante" data-id="${r.entry.id}" title="Clique para ouvir" onclick="lerTexto(this)">${trecho}</p>
           ${conf>0 ? `<span class="conf-badge">✅ confirmado ${conf}x</span>` : ''}
           ${renderDiferenciadoresBox(r.entry)}
         </div>
@@ -1480,7 +1589,7 @@ function renderPerguntasDiferenciadoras(ativos, tokensQuery){
         <div class="modal-tags">${(entry.tags||[]).map(t=>`<span class="tag">#${escapeHtml(t)}</span>`).join('')}</div>
         <div class="modal-date">🕒 adicionado em ${formatDate(entry.dataAdicao)}${conf>0?' · ✅ confirmado '+conf+'x':''}</div>
       </div>
-      <div class="modal-causas">${destacarTermos(escapeHtmlKeepBreaks(entry.causas), tokens)}</div>
+      <div class="modal-causas texto-falante" title="Clique para ouvir" onclick="lerTexto(this)">${destacarTermos(escapeHtmlKeepBreaks(entry.causas), tokens)}</div>
       ${entry.diferenciadores && entry.diferenciadores.length ? '<div style="margin-top:18px; border-top:1px solid var(--border); padding-top:14px;">'+renderDiferenciadoresBox(entry)+'</div>' : ''}
       <div class="modal-actions">
         <button data-action="confirmar" data-id="${entry.id}" style="color:var(--success); border-color:var(--success-soft);">✅ Foi esse o problema</button>
@@ -1711,29 +1820,44 @@ function parseQuickText(text, categoriaPadrao){
     const termo = normalize(document.getElementById('manageSearch').value);
     const cat = document.getElementById('manageCategoria').value;
     let lista = allEntries.slice();
+    
     if(cat) lista = lista.filter(e=> e.categoria===cat);
     if(termo) lista = lista.filter(e=> normalize(e.titulo).includes(termo) || normalize(e.categoria).includes(termo));
+    
     lista.sort((a,b)=> (b.dataAdicao||0)-(a.dataAdicao||0));
     document.getElementById('manageCount').textContent = lista.length + ' de ' + allEntries.length + ' caso(s)';
+    
     const visiveis = lista.slice(0, manageLimit);
     let html = visiveis.map(e=> `
       <div class="manage-item">
-        <div class="manage-item-info">
+        <div class="manage-item-info" style="width: 100%;">
           <strong>${escapeHtml(e.titulo)}</strong>
-          <span class="badge">${escapeHtml(e.categoria || 'sem categoria')}</span>
-          <span class="manage-date">${formatDate(e.dataAdicao)}</span>
-          ${e.confirmacoes ? `<span class="conf-badge" style="margin-top:0;">✅ ${e.confirmacoes}x</span>` : ''}
-          ${e.diferenciadores && e.diferenciadores.length ? `<span class="dif-count-badge">🔬 ${e.diferenciadores.length}</span>` : ''}
+          <div style="margin-top: 4px; margin-bottom: 8px;">
+              <span class="badge">${escapeHtml(e.categoria || 'sem categoria')}</span>
+              <span class="manage-date">${formatDate(e.dataAdicao)}</span>
+              ${e.confirmacoes ? `<span class="conf-badge" style="margin-top:0;">✅ ${e.confirmacoes}x</span>` : ''}
+              ${e.diferenciadores && e.diferenciadores.length ? `<span class="dif-count-badge">🔬 ${e.diferenciadores.length}</span>` : ''}
+          </div>
+          
+          <!-- CAIXA DO MODO ESTUDO (ÁUDIO) -->
+          <div class="texto-falante" data-id="${e.id}" onclick="lerTexto(this)" title="Clique para ouvir" 
+               style="margin-top: 8px; padding: 10px; background: var(--bg); border-radius: 6px; font-size: 13px; line-height: 1.5; color: var(--text-faint); border: 1px solid var(--border); cursor: pointer; white-space: normal;">
+            ${escapeHtml(e.causas || '')}
+          </div>
+          
         </div>
-        <div class="manage-item-actions">
+        <div class="manage-item-actions" style="display: flex; flex-direction: column; justify-content: flex-start; gap: 8px; margin-left: 10px;">
           <button data-action="ver" data-id="${e.id}" title="Ver">👁️</button>
           <button data-action="editar" data-id="${e.id}" title="Editar">✏️</button>
           <button data-action="excluir" data-id="${e.id}" title="Excluir">🗑️</button>
         </div>
       </div>`).join('');
+      
     if(lista.length===0) html = '<div class="empty">Nenhum caso cadastrado ainda.<br>Use a aba "Adicionar" para começar.</div>';
+    
     const manageListEl = document.getElementById('manageList');
     manageListEl.innerHTML = html;
+    
     if(lista.length > visiveis.length){
       const btn = document.createElement('button');
       btn.className = 'btn-secondary';
@@ -1745,8 +1869,7 @@ function parseQuickText(text, categoriaPadrao){
   }
   document.getElementById('manageSearch').addEventListener('input', debounce(()=>{ manageLimit=150; renderGerenciar(); }, 150));
   document.getElementById('manageCategoria').addEventListener('change', ()=>{ manageLimit=150; renderGerenciar(); });
-/* ---------------- O Efeito Sherlock (Tempo Real + Clique) ---------------- */
-  let sherlockCategoriaAtiva = '';
+ let sherlockCategoriaAtiva = '';
 
   // Quando você clica em um chip de categoria no Sherlock
   document.addEventListener('click', (e) => {
