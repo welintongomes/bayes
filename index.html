@@ -1842,7 +1842,7 @@ function parseQuickText(text, categoriaPadrao){
     const text = document.getElementById('quickText').value;
     const catPadrao = document.getElementById('quickCategoriaPadrao').value.trim();
     const parsed = parseQuickText(text, catPadrao);
-    if(parsed.length===0){ showToast('Cole algum texto antes de salvar.', 'erro'); return; }
+    if(parsed.length===0){ showToast('Digite ou cole algum texto Para salvar.', 'erro'); return; }
     for(const item of parsed){
       await dbAdd(STORE_CASOS, { titulo:item.titulo, categoria:item.categoria, tags:item.tags, causas:item.causas, dataAdicao: Date.now(), confirmacoes:0, diferenciadores:[] });
     }
@@ -1943,69 +1943,100 @@ function executarSherlock() {
     if(!box) return;
     
     const coOcorrencias = {};
+    const frequenciaIndividual = {}; // Novidade: Para o Jaccard funcionar
+    
     const termoBuscado = normalize(document.getElementById('sherlockSearch').value);
-
-    // Filtra só a categoria que você clicou no Chip
     let base = sherlockCategoriaAtiva ? allEntries.filter(e => e.categoria === sherlockCategoriaAtiva) : allEntries;
 
+    // 1ª PASSADA: Conta as frequências e as parcerias
     base.forEach(e => {
       const tags = (e.tags || []).map(t => escapeHtml(t.trim().toUpperCase()));
-      // Agora a Categoria SEMPRE vira uma tag, garantindo que peças solitárias consigam formar um par!
       if (e.categoria) tags.push(escapeHtml(e.categoria.toUpperCase()));
 
-      for(let i = 0; i < tags.length; i++){
-        for(let j = i + 1; j < tags.length; j++){
-          if(tags[i] === tags[j]) continue;
-          const par = [tags[i], tags[j]].sort().join(' 🔗 ');
+      // Limpa tags vazias ou duplicadas dentro do mesmo caso
+      const tagsUnicas = Array.from(new Set(tags)).filter(t => t.length > 1);
+
+      // A força deste caso específico (peso das confirmações)
+      const pesoDoCaso = 1 + (e.confirmacoes || 0) * 0.5;
+
+      // Conta aparições individuais para o Índice de Jaccard
+      tagsUnicas.forEach(t => {
+          frequenciaIndividual[t] = (frequenciaIndividual[t] || 0) + pesoDoCaso;
+      });
+
+      // Conta as co-ocorrências (quando duas andam de mãos dadas)
+      for(let i = 0; i < tagsUnicas.length; i++){
+        for(let j = i + 1; j < tagsUnicas.length; j++){
+          const par = [tagsUnicas[i], tagsUnicas[j]].sort().join(' 🔗 ');
           
-          // CRIA O SEPARADOR DE NOTAS
-          if(!coOcorrencias[par]) coOcorrencias[par] = { base: 0, idfScore: 0 };
-
-          // 1. O Voto Base (A prova de que é padrão)
-          const voto = 1 + (e.confirmacoes || 0) * 0.5;
-          coOcorrencias[par].base += voto;
-
-          // 2. O Multiplicador de Raridade (IDF)
-          const idf1 = bayesIndex && bayesIndex.idf ? (bayesIndex.idf.get(normalize(tags[i])) || 1) : 1;
-          const idf2 = bayesIndex && bayesIndex.idf ? (bayesIndex.idf.get(normalize(tags[j])) || 1) : 1;
-          const fatorRaridade = (idf1 + idf2) / 2;
-
-          // 3. A Nota Final com Super-Poderes
-          coOcorrencias[par].idfScore += (voto * fatorRaridade);
+          if(!coOcorrencias[par]) coOcorrencias[par] = 0;
+          coOcorrencias[par] += pesoDoCaso;
         }
       }
     });
 
-    // A MÁGICA DA CORREÇÃO ACONTECE AQUI:
+    // 2ª PASSADA: A MÁGICA DA CORRELAÇÃO DE JACCARD + BAYES
     let paresProcessados = Object.entries(coOcorrencias)
-        // O CADEADO: O par tem que provar que existe (2 ocorrências mínimas ou 1 confirmação)
-        .filter(p => p[1].base >= 1.5) 
-        // Depois que provou, a gente organiza pela Nota de Raridade (IDF)
-        .map(p => [p[0], p[1].idfScore]) 
-        .sort((a,b) => b[1] - a[1]);
+        // CADEADO: Elimina fantasmas! A dupla tem que ter sido vista junta pelo menos umas 2 vezes
+        .filter(p => p[1] >= 1.5) 
+        .map(p => {
+            const termos = p[0].split(' 🔗 ');
+            const tag1 = termos[0];
+            const tag2 = termos[1];
+            
+            // Frequência de união
+            const freqJuntos = p[1];
+            const freq1 = frequenciaIndividual[tag1];
+            const freq2 = frequenciaIndividual[tag2];
+
+            // CÁLCULO DE JACCARD (Intersecção dividida pela União)
+            // Qual a porcentagem de vezes que essas peças andam sempre juntas?
+            const jaccardScore = freqJuntos / (freq1 + freq2 - freqJuntos);
+
+            // CÁLCULO DE BAYES (O quão raras são essas peças no universo?)
+            const idf1 = bayesIndex && bayesIndex.idf ? (bayesIndex.idf.get(normalize(tag1)) || 1) : 1;
+            const idf2 = bayesIndex && bayesIndex.idf ? (bayesIndex.idf.get(normalize(tag2)) || 1) : 1;
+            const raridadeScore = (idf1 + idf2) / 2;
+
+            // A NOTA DE GENIALIDADE DO SHERLOCK:
+            // Multiplica o fato de andarem SEMPRE juntas, pelo fato de serem RARAS.
+            const genialidade = (jaccardScore * 10) * raridadeScore * freqJuntos;
+
+            return {
+                par: p[0],
+                tag1: tag1,
+                tag2: tag2,
+                nota: genialidade,
+                pesoEncontro: freqJuntos
+            };
+        })
+        .sort((a,b) => b.nota - a.nota); // Organiza da maior descoberta para a menor
 
     if (termoBuscado) {
-        paresProcessados = paresProcessados.filter(p => normalize(p[0]).includes(termoBuscado));
+        paresProcessados = paresProcessados.filter(p => normalize(p.par).includes(termoBuscado));
     }
 
     const topPares = paresProcessados.slice(0, 20);
 
     if(topPares.length === 0){
-      box.innerHTML = '<div class="empty">Nenhum padrão confirmado encontrado... O Sherlock precisa que peças apareçam juntas em pelo menos 2 casos diferentes para considerar um padrão!</div>';
+      box.innerHTML = '<div class="empty">Nenhuma pista sólida encontrada... O Sherlock exige que as peças apresentem uma alta correlação para considerá-las um padrão oficial!</div>';
       return;
     }
 
     box.innerHTML = topPares.map((p, index) => {
-      const termos = p[0].split(' 🔗 ');
+      // Exibe uma porcentagem simplificada do Índice de Jaccard para você ter uma noção da força da dica
+      const confianca = Math.min(99, Math.round(p.nota * 5)); 
+      
       return `
-      <div class="dif-item sherlock-item" data-t1="${termos[0]}" data-t2="${termos[1]}">
+      <div class="dif-item sherlock-item" data-t1="${p.tag1}" data-t2="${p.tag2}">
         <div style="font-size: 13.5px; margin-bottom: 5px;">
-          <b>Padrão #${index + 1}:</b> Forte incidência entre <span class="badge">${termos[0]}</span> e <span class="badge">${termos[1]}</span>.
+          <b>Padrão #${index + 1} (${confianca}% confiança):</b> Forte correlação entre <span class="badge">${p.tag1}</span> e <span class="badge">${p.tag2}</span>.
         </div>
         <div style="font-size: 11.5px; color: var(--text-faint);">Clique para investigar a fundo os casos que contêm as duas peças ➔</div>
       </div>`;
     }).join('');
-  }
+}
+
   // Ativa a pesquisa em tempo real do Sherlock
   document.getElementById('sherlockSearch').addEventListener('input', debounce(executarSherlock, 150));
 
@@ -2303,7 +2334,7 @@ document.addEventListener('click', async (ev) => {
     const textoOriginal = input.value;
     
     if(!textoOriginal) {
-       showToast('Fale ou digite algo primeiro.', 'erro');
+       showToast('Digite algo primeiro.', 'erro');
        return;
     }
     
