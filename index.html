@@ -92,7 +92,7 @@
 
     .search-bar {display: flex;gap: 8px;flex-wrap: nowrap;margin-bottom: 10px;align-items: stretch;}
     #searchInput {
-      flex:1 1 260px; padding: 14px 32px 14px 11px; border-radius: var(--radius-sm);
+      flex:1 1 260px; padding: 6px 0px 6px 6px; border-radius: var(--radius-sm);
       border:1px solid var(--border); background:var(--panel); color:var(--text);
       font-size:15px; outline:none;
     }
@@ -103,7 +103,7 @@
     }
     button { cursor:pointer; font-family: var(--font); }
     #btnBuscar {
-      padding: 9px 11px; border-radius: var(--radius-sm); border:none;
+      padding: 9px 8px; border-radius: var(--radius-sm); border:none;
       background: var(--accent); color:#1a0e02; font-weight:800; font-size:12.5px; letter-spacing:.3px;
     }
     #btnBuscar:active { transform: scale(.98); }
@@ -230,10 +230,8 @@
     .manage-toolbar select { flex:0 0 auto; max-width:190px; font-family:var(--mono); font-size:12.5px; }
     #manageCount { font-size:11.5px; color:var(--text-faint); white-space:nowrap; font-family:var(--mono); }
     .manage-list { display:flex; flex-direction:column; gap:8px; }
-    .manage-item {
-    background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: flex; align-items: flex-end; gap: 10px; flex-wrap: nowrap; flex-direction: row-reverse;
-    }
-    .manage-item-info { display: flex; align-items: stretch; gap: 8px;flex-wrap: wrap;font-size: 13.5px;flex-direction: column;}
+    .manage-item { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: flex; align-items: flex-start; gap: 10px; flex-direction: column;}
+    .manage-item-info { display: flex; align-items: stretch; gap: 2px;flex-wrap: wrap;font-size: 13.5px;flex-direction: column;}
     .manage-date { color:var(--text-faint); font-size:11px; font-family:var(--mono); }
     .dif-count-badge { font-family:var(--mono); font-size:10.5px; font-weight:700; color:var(--accent-2); background:var(--accent-2-soft); padding:3px 8px; border-radius:20px; }
     .manage-item-actions { display:flex; gap:4px; }
@@ -247,7 +245,24 @@
     .card.danger h3 { color: var(--danger); }
     #importResult { margin-top:10px; font-size:13px; color: var(--success); }
     input[type=file] { color:var(--text-dim); font-size:13px; }
+    input[type="file"]::file-selector-button {
+    margin-right: 12px;
+    padding: 8px 14px;
+    border: 1px solid var(--accent-2);
+    border-radius: 8px;
+    background: var(--accent-2-soft);
+    color: var(--accent-2);
+    font-size: 13px;
+    font-family: var(--font);
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .15s ease;
+}
 
+input[type="file"]::file-selector-button:hover {
+    background: var(--accent-2);
+    color: white;
+}
     .sin-group { border:1px solid var(--border); border-radius:10px; padding:10px; margin-bottom:10px; background:var(--bg-alt); }
     .sin-textarea { min-height:90px; font-family:var(--mono); font-size:12.5px; margin-bottom:8px; }
     .sin-remove-btn { padding:8px 12px; border-radius:8px; border:1px solid var(--border); background:transparent; color:var(--danger); font-size:12px; font-weight:700; }
@@ -264,10 +279,25 @@
       border:1px solid var(--border); border-bottom:none;
       transform: translateY(16px); transition: transform .18s;
     }
+    .dif-edit-row select {
+    padding: 12px 8px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text-dim);
+    font-size: 13.5px;
+    max-width: 85px;
+    font-family: var(--mono);
+    }
     .modal-overlay.open .modal { transform: translateY(0); }
     @media (min-width: 720px){
       .modal-overlay { align-items:center; }
       .modal { border-radius: 18px; border-bottom:1px solid var(--border); }
+    }
+    
+    @media (max-width: 720px){
+      .btn-primary{width: 100%;}
+      .btn-secondary{width: 100%;}
     }
     .modal-close {
       position:absolute; top:14px; right:14px; width:32px; height:32px; border-radius:50%;
@@ -386,7 +416,7 @@ nav.tabs:has(.tab-btn[data-tab="buscar"].active) #perguntasBox {
 /* barras de pesquisas */
 /* Barras de Pesquisa com X */
     .input-wrapper { position: relative;  display: flex; width: 100%; }
-    .input-wrapper input { width: 100%; padding-right: 40px !important; }
+    .input-wrapper input { width: 100%; padding-right: 34px !important; }
     .btn-clear {
       position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
       background: transparent; border: none; color: var(--text-faint);
@@ -422,9 +452,9 @@ nav.tabs:has(.tab-btn[data-tab="buscar"].active) #perguntasBox {
       background: var(--bg-alt);
       border: 1px solid var(--border);
       color: var(--text-faint);
-      padding: 6px 12px;
+      padding: 6px 9px;
       border-radius: 20px;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: bold;
       cursor: pointer;
       transition: all 0.2s ease;
@@ -468,7 +498,7 @@ nav.tabs:has(.tab-btn[data-tab="buscar"].active) #perguntasBox {
           <button type="button" class="btn-clear" id="clearSearch">✕</button>
         </div>
         <select id="filterCategoria"><option value="">Todas as categorias</option></select>
-        <button id="btnBuscar" title="Traduzir Conversa/Voz para Operadores (+ e -)">🧠 Intenção</button>
+        <button id="btnBuscar" title="Traduzir Conversa/Voz para Operadores (+ e -)">Intenção</button>
       </div>
     <div id="perguntasBox" class="perguntas-box"></div>
     <button class="tab-btn active" data-tab="buscar"><span class="tab-icon">🔍</span><span class="tab-label">Buscar</span></button>
@@ -510,7 +540,7 @@ Verificar vela de ignição, regulagem do afogador, carga da bateria...
 Moto Honda CG 150 morre em marcha lenta
 Verificar parafuso de ar, vazamento de vácuo, vela suja..."></textarea>
 
-        <button type="button" id="toggleAvancado" class="btn-secondary" style="margin-top:10px;">⚙️ Opções avançadas</button>
+        
         <div id="avancadoBox" style="display:none; margin-top:12px;">
           <label for="quickCategoriaPadrao">Categoria / modelo padrão (opcional)</label>
           <input id="quickCategoriaPadrao" type="text" list="categoriasList" placeholder="Ex: Moto Honda CG 150 — aplica a todos os casos deste texto">
@@ -518,6 +548,7 @@ Verificar parafuso de ar, vazamento de vácuo, vela suja..."></textarea>
         </div>
 
         <div class="form-actions">
+          <button type="button" id="toggleAvancado" class="btn-secondary" >⚙️ Opções avançadas</button>
           <button type="button" id="btnQuickPreview" class="btn-secondary">👁️ Pré-visualizar</button>
           <button type="button" id="btnQuickSave" class="btn-primary">💾 Salvar no banco</button>
         </div>
@@ -554,7 +585,7 @@ Verificar parafuso de ar, vazamento de vácuo, vela suja..."></textarea>
         <select id="manageCategoria"><option value="">Todas as categorias</option></select>
         <span id="manageCount"></span>
       </div>
-      <div id="manageList" class="manage-list" style="overflow-y: auto; max-height: 60vh;"></div>
+      <div id="manageList" class="manage-list" style="overflow-y: auto;scrollbar-color: rgb(13 15 19) rgba(255, 255, 255, .05);scrollbar-width: thin; max-height: 60vh;"></div>
     </section>
 
     <!-- DADOS -->
@@ -1657,7 +1688,7 @@ function renderPerguntasDiferenciadoras(ativos, tokensQuery){
         <label>Diferenciadores (opcional)</label>
         <p class="hint" style="margin-top:-6px;">Perguntas Sim/Não que ajudam a distinguir este caso de outros parecidos durante a busca.</p>
         <div id="difList"></div>
-        <button type="button" id="btnAddDif" class="btn-secondary" style="margin-top:2px;">+ Adicionar pergunta diferenciadora</button>
+        <button type="button" id="btnAddDif" class="btn-secondary" style="margin-top:2px; width: 100%;">+ Adicionar pergunta diferenciadora</button>
         <div class="modal-actions">
           <button type="submit" class="btn-primary" style="flex:1 1 45%;">💾 Salvar alterações</button>
           <button type="button" id="btnCancelarEdicaoModal" class="btn-secondary" style="flex:1 1 45%;">Cancelar</button>
@@ -1846,7 +1877,7 @@ function parseQuickText(text, categoriaPadrao){
           </div>
           
         </div>
-        <div class="manage-item-actions" style="display: flex; flex-direction: column; justify-content: flex-start; gap: 8px; margin-left: 10px;">
+        <div class="manage-item-actions" style="display: flex; flex-direction: row; justify-content: flex-start; gap: 8px; margin-left: 0px;">
           <button data-action="ver" data-id="${e.id}" title="Ver">👁️</button>
           <button data-action="editar" data-id="${e.id}" title="Editar">✏️</button>
           <button data-action="excluir" data-id="${e.id}" title="Excluir">🗑️</button>
