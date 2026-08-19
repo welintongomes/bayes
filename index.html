@@ -566,17 +566,17 @@ Verificar parafuso de ar, vazamento de vácuo, vela suja..."></textarea>
     <!-- SHERLOCK HOLMES -->
     <section id="tab-sherlock" class="tab-panel">
       <div class="card destaque">
-        <h3>🕵️ A Inteligência Oculta da Oficina</h3>
-        <p class="hint">Descubra peças e defeitos que costumam falhar juntos. Clique em um padrão para investigá-lo na busca principal!</p>
+        <h3>🕵️ A Inteligência Oculta</h3>
+        <p class="hint">Descubra itens e defeitos que costumam estar juntos. Clique em um padrão para investigá-lo na busca principal!</p>
 
         <div class="sherlock-controls">
           <div class="input-wrapper">
             <input id="sherlockSearch" type="text" placeholder="Filtrar padrões (ex: bomba, rele)..." autocomplete="off">
             <button type="button" class="btn-clear" id="clearSherlock">✕</button>
           </div>
-          <div class="sherlock-chips" id="sherlockCategorias">
-             <!-- Chips gerados via JS -->
-          </div>
+          <select id="sherlockCategoriaSelect" style="width: 100%; padding: 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 15px; margin-top: 8px; margin-bottom: 10px; font-family: var(--font);">
+             <!-- O JS vai preencher isso sozinho -->
+          </select>
         </div>
 
         <div id="sherlockResultados" style="display:flex; scrollbar-width: none; overflow-y: auto; max-height: 46vh; flex-direction:column; gap:10px;"></div>
@@ -1854,6 +1854,7 @@ function parseQuickText(text, categoriaPadrao){
   });
 
   /* ---------------- Gerenciar ---------------- */
+/* ---------------- Gerenciar ---------------- */
   function renderGerenciar(){
     const termo = normalize(document.getElementById('manageSearch').value);
     const cat = document.getElementById('manageCategoria').value;
@@ -1877,7 +1878,6 @@ function parseQuickText(text, categoriaPadrao){
               ${e.diferenciadores && e.diferenciadores.length ? `<span class="dif-count-badge">🔬 ${e.diferenciadores.length}</span>` : ''}
           </div>
           
-          <!-- CAIXA DO MODO ESTUDO (ÁUDIO) -->
           <div class="texto-falante" data-id="${e.id}" onclick="lerTexto(this)" title="Clique para ouvir" 
                style="margin-top: 8px; padding: 10px; background: var(--bg); border-radius: 6px; font-size: 13px; line-height: 1.5; color: var(--text-faint); border: 1px solid var(--border); cursor: pointer; white-space: normal;">
             ${escapeHtml(e.causas || '')}
@@ -1888,6 +1888,8 @@ function parseQuickText(text, categoriaPadrao){
           <button data-action="ver" data-id="${e.id}" title="Ver">👁️</button>
           <button data-action="editar" data-id="${e.id}" title="Editar">✏️</button>
           <button data-action="excluir" data-id="${e.id}" title="Excluir">🗑️</button>
+          <!-- O NOVO BOTÃO DE COPIAR -->
+          <button onclick="copiarCasoOficina('${e.id}')" title="Copiar Ficha">📋</button>
         </div>
       </div>`).join('');
       
@@ -1905,21 +1907,41 @@ function parseQuickText(text, categoriaPadrao){
       manageListEl.appendChild(btn);
     }
   }
+
+  // A FUNÇÃO ALIENÍGENA DE COPIAR (Apenas o texto puro e exato da solução)
+  window.copiarCasoOficina = function(id) {
+      const caso = allEntries.find(c => String(c.id) === String(id));
+      if (!caso) return;
+
+      // Pega EXATAMENTE o que você digitou na causa (com as quebras de linha preservadas)
+      const textoCopiado = caso.causas || '';
+
+      // Usa o motor nativo do celular para enviar pro teclado
+      navigator.clipboard.writeText(textoCopiado).then(() => {
+          if (typeof showToast === 'function') {
+              showToast('📋 Texto copiado! Pronto para colar.', 'ok');
+          } else {
+              alert('Texto copiado com sucesso!');
+          }
+      }).catch(err => {
+          console.error("Erro ao copiar:", err);
+          alert('Seu navegador bloqueou a cópia automática.');
+      });
+  };
+
   document.getElementById('manageSearch').addEventListener('input', debounce(()=>{ manageLimit=150; renderGerenciar(); }, 150));
   document.getElementById('manageCategoria').addEventListener('change', ()=>{ manageLimit=150; renderGerenciar(); });
  let sherlockCategoriaAtiva = '';
 
-  // Quando você clica em um chip de categoria no Sherlock
-  document.addEventListener('click', (e) => {
-    const chip = e.target.closest('.chip-cat');
-    if(chip) {
-       sherlockCategoriaAtiva = chip.dataset.cat;
-       popularFiltrosCategoria(); // Re-pinta os chips
+  // O NOVO OUVINTE DO SELECT (Substitui o clique nos Chips)
+  document.addEventListener('change', (e) => {
+    if (e.target.id === 'sherlockCategoriaSelect') {
+       sherlockCategoriaAtiva = e.target.value;
        executarSherlock();
     }
   });
 
-  // O "Gatilho" para mandar a investigação para a Aba Buscar
+  // O "Gatilho" para mandar a investigação para a Aba Buscar (Mantido intacto)
   document.addEventListener('click', (e) => {
     const item = e.target.closest('.sherlock-item');
     if (item) {
@@ -1927,7 +1949,6 @@ function parseQuickText(text, categoriaPadrao){
        const t2 = item.dataset.t2;
        const searchInput = document.getElementById('searchInput');
        
-       // Seta a busca (Ex: "Bomba Relé") e altera a categoria na busca principal!
        searchInput.value = `${t1} ${t2}`;
        document.getElementById('clearSearch').style.display = 'block';
        document.getElementById('filterCategoria').value = sherlockCategoriaAtiva;
@@ -1943,74 +1964,52 @@ function executarSherlock() {
     if(!box) return;
     
     const coOcorrencias = {};
-    const frequenciaIndividual = {}; // Novidade: Para o Jaccard funcionar
+    const frequenciaIndividual = {}; 
     
     const termoBuscado = normalize(document.getElementById('sherlockSearch').value);
     let base = sherlockCategoriaAtiva ? allEntries.filter(e => e.categoria === sherlockCategoriaAtiva) : allEntries;
 
-    // 1ª PASSADA: Conta as frequências e as parcerias
     base.forEach(e => {
       const tags = (e.tags || []).map(t => escapeHtml(t.trim().toUpperCase()));
       if (e.categoria) tags.push(escapeHtml(e.categoria.toUpperCase()));
 
-      // Limpa tags vazias ou duplicadas dentro do mesmo caso
       const tagsUnicas = Array.from(new Set(tags)).filter(t => t.length > 1);
-
-      // A força deste caso específico (peso das confirmações)
       const pesoDoCaso = 1 + (e.confirmacoes || 0) * 0.5;
 
-      // Conta aparições individuais para o Índice de Jaccard
       tagsUnicas.forEach(t => {
           frequenciaIndividual[t] = (frequenciaIndividual[t] || 0) + pesoDoCaso;
       });
 
-      // Conta as co-ocorrências (quando duas andam de mãos dadas)
       for(let i = 0; i < tagsUnicas.length; i++){
         for(let j = i + 1; j < tagsUnicas.length; j++){
           const par = [tagsUnicas[i], tagsUnicas[j]].sort().join(' 🔗 ');
-          
           if(!coOcorrencias[par]) coOcorrencias[par] = 0;
           coOcorrencias[par] += pesoDoCaso;
         }
       }
     });
 
-    // 2ª PASSADA: A MÁGICA DA CORRELAÇÃO DE JACCARD + BAYES
     let paresProcessados = Object.entries(coOcorrencias)
-        // CADEADO: Elimina fantasmas! A dupla tem que ter sido vista junta pelo menos umas 2 vezes
         .filter(p => p[1] >= 1.5) 
         .map(p => {
             const termos = p[0].split(' 🔗 ');
             const tag1 = termos[0];
             const tag2 = termos[1];
             
-            // Frequência de união
             const freqJuntos = p[1];
             const freq1 = frequenciaIndividual[tag1];
             const freq2 = frequenciaIndividual[tag2];
 
-            // CÁLCULO DE JACCARD (Intersecção dividida pela União)
-            // Qual a porcentagem de vezes que essas peças andam sempre juntas?
             const jaccardScore = freqJuntos / (freq1 + freq2 - freqJuntos);
-
-            // CÁLCULO DE BAYES (O quão raras são essas peças no universo?)
             const idf1 = bayesIndex && bayesIndex.idf ? (bayesIndex.idf.get(normalize(tag1)) || 1) : 1;
             const idf2 = bayesIndex && bayesIndex.idf ? (bayesIndex.idf.get(normalize(tag2)) || 1) : 1;
             const raridadeScore = (idf1 + idf2) / 2;
 
-            // A NOTA DE GENIALIDADE DO SHERLOCK:
-            // Multiplica o fato de andarem SEMPRE juntas, pelo fato de serem RARAS.
             const genialidade = (jaccardScore * 10) * raridadeScore * freqJuntos;
 
-            return {
-                par: p[0],
-                tag1: tag1,
-                tag2: tag2,
-                nota: genialidade,
-                pesoEncontro: freqJuntos
-            };
+            return { par: p[0], tag1: tag1, tag2: tag2, nota: genialidade, pesoEncontro: freqJuntos };
         })
-        .sort((a,b) => b.nota - a.nota); // Organiza da maior descoberta para a menor
+        .sort((a,b) => b.nota - a.nota); 
 
     if (termoBuscado) {
         paresProcessados = paresProcessados.filter(p => normalize(p.par).includes(termoBuscado));
@@ -2024,9 +2023,7 @@ function executarSherlock() {
     }
 
     box.innerHTML = topPares.map((p, index) => {
-      // Exibe uma porcentagem simplificada do Índice de Jaccard para você ter uma noção da força da dica
       const confianca = Math.min(99, Math.round(p.nota * 5)); 
-      
       return `
       <div class="dif-item sherlock-item" data-t1="${p.tag1}" data-t2="${p.tag2}">
         <div style="font-size: 13.5px; margin-bottom: 5px;">
@@ -2035,29 +2032,34 @@ function executarSherlock() {
         <div style="font-size: 11.5px; color: var(--text-faint);">Clique para investigar a fundo os casos que contêm as duas peças ➔</div>
       </div>`;
     }).join('');
-}
+  }
 
   // Ativa a pesquisa em tempo real do Sherlock
   document.getElementById('sherlockSearch').addEventListener('input', debounce(executarSherlock, 150));
+
 
   /* ---------------- Categorias / stats ---------------- */
   function popularFiltrosCategoria(){
     const cats = Array.from(new Set(allEntries.map(e=> e.categoria).filter(Boolean))).sort((a,b)=> a.localeCompare(b,'pt-BR'));
     
-    // Atualiza Selects
-    [document.getElementById('filterCategoria'), document.getElementById('manageCategoria')].forEach(sel=>{
-      const atual = sel.value;
+    // Agora ele atualiza os 3 Selects de uma vez só! (Busca, Gerenciar e Sherlock)
+    [
+      document.getElementById('filterCategoria'), 
+      document.getElementById('manageCategoria'),
+      document.getElementById('sherlockCategoriaSelect') // <--- A Mágica nova aqui
+    ].forEach(sel => {
+      if(!sel) return;
+      
+      // Preserva o valor selecionado antes de repintar
+      let atual = sel.value;
+      if (sel.id === 'sherlockCategoriaSelect') atual = sherlockCategoriaAtiva;
+
       sel.innerHTML = '<option value="">Todas as categorias</option>' + cats.map(c=> `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+      
       if(cats.includes(atual)) sel.value = atual;
     });
-    document.getElementById('categoriasList').innerHTML = cats.map(c=> `<option value="${escapeHtml(c)}">`).join('');
 
-    // Cria os Chips do Sherlock dinamicamente
-    let chipsHtml = `<button type="button" class="chip-cat ${sherlockCategoriaAtiva===''?'active':''}" data-cat="">Todas as Categorias</button>`;
-    chipsHtml += cats.map(c => `<button type="button" class="chip-cat ${sherlockCategoriaAtiva===c?'active':''}" data-cat="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('');
-    
-    const container = document.getElementById('sherlockCategorias');
-    if(container) container.innerHTML = chipsHtml;
+    document.getElementById('categoriasList').innerHTML = cats.map(c=> `<option value="${escapeHtml(c)}">`).join('');
   }
   function atualizarStatsMini(){
     const totalCasos = allEntries.length;
