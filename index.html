@@ -1886,10 +1886,10 @@ function parseQuickText(text, categoriaPadrao){
         </div>
         <div class="manage-item-actions" style="display: flex; flex-direction: row; justify-content: flex-start; gap: 8px; margin-left: 0px;">
           <button data-action="ver" data-id="${e.id}" title="Ver">👁️</button>
-          <button data-action="editar" data-id="${e.id}" title="Editar">✏️</button>
-          <button data-action="excluir" data-id="${e.id}" title="Excluir">🗑️</button>
           <!-- O NOVO BOTÃO DE COPIAR -->
           <button onclick="copiarCasoOficina('${e.id}')" title="Copiar Ficha">📋</button>
+          <button data-action="editar" data-id="${e.id}" title="Editar">✏️</button>
+          <button data-action="excluir" data-id="${e.id}" title="Excluir">🗑️</button>
         </div>
       </div>`).join('');
       
