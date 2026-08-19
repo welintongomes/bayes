@@ -2039,23 +2039,139 @@ function executarSherlock() {
     sinonimos.push({ canonico:'', variantes:[] });
     renderSinonimosList();
   });
+/* ---------------- Exportar / Importar JSON (Com Cartuchos) ---------------- */
 
-  /* ---------------- Exportar / Importar JSON ---------------- */
-  document.getElementById('btnExport').addEventListener('click', async ()=>{
-    const dados = await dbGetAll(STORE_CASOS);
-    const sins = await dbGetAll(STORE_SINONIMOS);
-    if(dados.length===0 && sins.length===0){ showToast('O banco de dados está vazio.', 'erro'); return; }
-    const payload = { app:'DiagnosticoMestre', versao:3, exportadoEm:new Date().toISOString(), total:dados.length, casos:dados, sinonimos:sins };
-    const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'diagnostico-mestre-backup-'+new Date().toISOString().slice(0,10)+'.json';
-    document.body.appendChild(a); a.click(); a.remove();
-    URL.revokeObjectURL(url);
-    showToast('Backup exportado: '+dados.length+' caso(s), '+sins.length+' grupo(s) de sinônimos.', 'ok');
-  });
+// 1. BOTÃO DE EXPORTAR — delegação de evento no document,
+//    funciona mesmo se a aba "Dados" for recriada depois do carregamento
+document.addEventListener('click', async (ev) => {
+  const btn = ev.target.closest('#btnExport');
+  if (!btn) return;
 
+  let modalExport = document.getElementById('modalCartuchosVIP');
+  if (!modalExport) {
+     modalExport = document.createElement('div');
+     modalExport.id = 'modalCartuchosVIP';
+     modalExport.style.cssText = `
+       position: fixed; inset: 0; z-index: 999999;
+       background: rgba(0,0,0,0.6);
+       display: none; align-items: center; justify-content: center;
+       padding: 16px;
+     `;
+     modalExport.innerHTML = `
+       <div style="max-width:400px; width:100%; background:var(--bg, #1e1e1e); color:var(--text, #fff);
+                   border-radius:12px; padding:20px; position:relative; max-height:85vh; overflow-y:auto;">
+          <button id="fecharModalCartucho" style="position:absolute; top:10px; right:14px; background:none;
+                  border:none; font-size:20px; color:inherit; cursor:pointer;">✕</button>
+          <h3 style="margin-top:0;">💾 Criar Cartucho</h3>
+          <p style="font-size:13px; opacity:0.8; margin-bottom:15px;">
+            Selecione as categorias que deseja exportar.<br>
+            <i>(Se não marcar nenhuma, fará o backup de TUDO).</i>
+          </p>
+
+          <label style="display:flex; align-items:center; gap:10px; font-size:14px; cursor:pointer;
+                 padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.15); margin-bottom:12px;">
+             <input type="checkbox" id="checkSoSinonimos" style="transform:scale(1.2);">
+             <span>🔤 Exportar <b>somente os sinônimos</b></span>
+          </label>
+
+          <div id="listaCategoriasExport" style="max-height:250px; overflow-y:auto; margin-bottom:20px;
+               display:flex; flex-direction:column; gap:10px; padding:5px;"></div>
+          <button id="btnConfirmaCartucho" class="btn-primary" style="width:100%; font-size:15px; padding:12px;">
+            📥 Baixar Cartucho
+          </button>
+       </div>
+     `;
+     document.body.appendChild(modalExport);
+
+     // fechar clicando no X ou fora do card
+     modalExport.querySelector('#fecharModalCartucho').addEventListener('click', () => {
+       modalExport.style.display = 'none';
+     });
+     modalExport.addEventListener('click', (e) => {
+       if (e.target === modalExport) modalExport.style.display = 'none';
+     });
+
+     // desativa visualmente as categorias quando "somente sinônimos" está marcado
+     document.getElementById('checkSoSinonimos').addEventListener('change', (e) => {
+       const box = document.getElementById('listaCategoriasExport');
+       box.style.opacity = e.target.checked ? '0.35' : '1';
+       box.style.pointerEvents = e.target.checked ? 'none' : 'auto';
+     });
+
+     document.getElementById('btnConfirmaCartucho').addEventListener('click', async () => {
+        const soSinonimos = document.getElementById('checkSoSinonimos').checked;
+        const checkboxes = document.querySelectorAll('.check-export-cat:checked');
+        const categoriasSelecionadas = Array.from(checkboxes).map(cb => cb.value);
+
+        let dadosParaExportar = allEntries;
+        let nomeArquivo = 'diagnostico-mestre-backup-' + new Date().toISOString().slice(0,10) + '.json';
+
+        if (soSinonimos) {
+            dadosParaExportar = [];
+            nomeArquivo = 'cartucho_sinonimos-' + new Date().toISOString().slice(0,10) + '.json';
+        } else if (categoriasSelecionadas.length > 0) {
+            dadosParaExportar = allEntries.filter(e => categoriasSelecionadas.includes(e.categoria || 'Sem Categoria'));
+            if (categoriasSelecionadas.length === 1) {
+                const nomeLimpo = categoriasSelecionadas[0].toLowerCase().replace(/\s+/g, '_');
+                nomeArquivo = `cartucho_${nomeLimpo}-${new Date().toISOString().slice(0,10)}.json`;
+            } else {
+                nomeArquivo = `cartucho_multi_categorias-${new Date().toISOString().slice(0,10)}.json`;
+            }
+        }
+
+        const sins = await dbGetAll(STORE_SINONIMOS);
+
+        if (dadosParaExportar.length === 0 && sins.length === 0) {
+            showToast('Nenhum dado para exportar nessa seleção.', 'erro');
+            return;
+        }
+
+        const payload = {
+            app: 'DiagnosticoMestre',
+            versao: 3,
+            exportadoEm: new Date().toISOString(),
+            total: dadosParaExportar.length,
+            casos: dadosParaExportar,
+            sinonimos: sins
+        };
+
+        const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = nomeArquivo;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+
+        modalExport.style.display = 'none';
+        showToast((soSinonimos ? sins.length+' grupo(s) de sinônimos' : dadosParaExportar.length+' caso(s)') + ' exportado(s).', 'ok');
+     });
+  }
+
+  // sempre desmarca ao reabrir, pra não confundir na próxima vez
+  document.getElementById('checkSoSinonimos').checked = false;
+  document.getElementById('listaCategoriasExport').style.opacity = '1';
+  document.getElementById('listaCategoriasExport').style.pointerEvents = 'auto';
+
+  const box = document.getElementById('listaCategoriasExport');
+  const categorias = Array.from(new Set(allEntries.map(e => e.categoria || 'Sem Categoria'))).sort();
+
+  if (categorias.length === 0) {
+      box.innerHTML = '<p style="opacity:0.6; font-size:13px;">O banco está vazio.</p>';
+  } else {
+      box.innerHTML = categorias.map(c => `
+         <label style="display:flex; align-items:center; gap:10px; font-size:15px; cursor:pointer; padding:5px 0;">
+            <input type="checkbox" class="check-export-cat" value="${escapeHtml(c)}" style="transform:scale(1.2);">
+            <span>${escapeHtml(c)}</span>
+         </label>
+      `).join('');
+  }
+
+  modalExport.style.display = 'flex';
+});
+// 2. SUA IMPORTAÇÃO ORIGINAL (Intacta!)
   document.getElementById('btnImportFile').addEventListener('click', async ()=>{
     const fileInput = document.getElementById('fileImport');
     const file = fileInput.files[0];
@@ -2109,6 +2225,7 @@ function executarSherlock() {
     }
   });
 
+  // 3. SEU APAGAR ORIGINAL (Intacto!)
   document.getElementById('btnClearAll').addEventListener('click', async ()=>{
     if(allEntries.length===0 && sinonimos.length===0){ showToast('O banco já está vazio.', 'erro'); return; }
     if(!confirm('Isso vai apagar TODOS os '+allEntries.length+' casos e os grupos de sinônimos deste banco de dados. Essa ação NÃO pode ser desfeita. Recomendado: exporte um backup antes. Continuar?')) return;
@@ -2124,7 +2241,6 @@ function executarSherlock() {
     renderSinonimosList();
     showToast('Banco de dados apagado.', 'ok');
   });
-
   /* ---------------- Abas ---------------- */
   function mudarAba(nome){
     document.querySelectorAll('.tab-btn').forEach(b=> b.classList.toggle('active', b.dataset.tab===nome));
