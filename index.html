@@ -1886,8 +1886,9 @@ function parseQuickText(text, categoriaPadrao){
         </div>
         <div class="manage-item-actions" style="display: flex; flex-direction: row; justify-content: flex-start; gap: 8px; margin-left: 0px;">
           <button data-action="ver" data-id="${e.id}" title="Ver">👁️</button>
-          <!-- O NOVO BOTÃO DE COPIAR -->
-          <button onclick="copiarCasoOficina('${e.id}')" title="Copiar Ficha">📋</button>
+          <!-- OS DOIS BOTÕES DE COPIAR -->
+          <button onclick="copiarSoTexto('${e.id}')" title="Copiar só a Solução">📝</button>
+          <button onclick="copiarFichaCompleta('${e.id}')" title="Copiar Ficha Completa para Amigo">📋</button>
           <button data-action="editar" data-id="${e.id}" title="Editar">✏️</button>
           <button data-action="excluir" data-id="${e.id}" title="Excluir">🗑️</button>
         </div>
@@ -1908,20 +1909,38 @@ function parseQuickText(text, categoriaPadrao){
     }
   }
 
-  // A FUNÇÃO ALIENÍGENA DE COPIAR (Apenas o texto puro e exato da solução)
-  window.copiarCasoOficina = function(id) {
+  // 1. FUNÇÃO: COPIAR SÓ A SOLUÇÃO (O Bloco de Notas)
+  window.copiarSoTexto = function(id) {
       const caso = allEntries.find(c => String(c.id) === String(id));
       if (!caso) return;
 
-      // Pega EXATAMENTE o que você digitou na causa (com as quebras de linha preservadas)
       const textoCopiado = caso.causas || '';
 
-      // Usa o motor nativo do celular para enviar pro teclado
       navigator.clipboard.writeText(textoCopiado).then(() => {
           if (typeof showToast === 'function') {
-              showToast('📋 Texto copiado! Pronto para colar.', 'ok');
+              showToast('📝 Solução copiada! (Apenas texto)', 'ok');
           } else {
-              alert('Texto copiado com sucesso!');
+              alert('Solução copiada!');
+          }
+      }).catch(err => {
+          console.error("Erro ao copiar:", err);
+          alert('Seu navegador bloqueou a cópia automática.');
+      });
+  };
+
+  // 2. FUNÇÃO: COPIAR A FICHA COMPLETA (A Prancheta pro WhatsApp)
+  window.copiarFichaCompleta = function(id) {
+      const caso = allEntries.find(c => String(c.id) === String(id));
+      if (!caso) return;
+
+      // Monta a estrutura linda pro WhatsApp com negrito (*)
+      const textoCopiado = `${caso.titulo}\n\nCategoria: ${caso.categoria || 'Geral'}\nTags: ${(caso.tags || []).join(', ')}\n\n${caso.causas}`;
+
+      navigator.clipboard.writeText(textoCopiado).then(() => {
+          if (typeof showToast === 'function') {
+              showToast('📋 Ficha completa copiada para enviar!', 'ok');
+          } else {
+              alert('Ficha completa copiada!');
           }
       }).catch(err => {
           console.error("Erro ao copiar:", err);
