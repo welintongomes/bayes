@@ -167,7 +167,7 @@
     .btn-confirmar { color: var(--success); }
     .btn-confirmar:hover { border-color: var(--success); }
 
-    .dif-box { margin-top:10px; display:flex; flex-direction:column; gap:6px; }
+    .dif-box { margin-top:10px; scrollbar-color: rgb(18 21 27) rgba(255, 255, 255, .05); scrollbar-width: thin; display:flex; flex-direction:column; gap:6px; overflow-y: auto; max-height: 90px; }
     .dif-item { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; background:var(--bg-alt); border:1px solid var(--border); border-radius:8px; padding:8px 10px; }
     .dif-pergunta { font-size:12px; color:var(--text-dim); flex:1 1 150px; }
     .dif-botoes { display:flex; gap:4px; flex:0 0 auto; }
@@ -574,7 +574,7 @@ Verificar parafuso de ar, vazamento de vácuo, vela suja..."></textarea>
             <input id="sherlockSearch" type="text" placeholder="Filtrar padrões (ex: bomba, rele)..." autocomplete="off">
             <button type="button" class="btn-clear" id="clearSherlock">✕</button>
           </div>
-          <select id="sherlockCategoriaSelect" style="width: 100%; padding: 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 15px; margin-top: 8px; margin-bottom: 10px; font-family: var(--font);">
+          <select id="sherlockCategoriaSelect" style="width: 100%; padding: 5px; border-radius: 6px;  border: 1px solid var(--border);  background: var(--bg); color: var(--text); font-size: 15px;  margin-top: 2px; margin-bottom: 2px; font-family: var(--font);">
              <!-- O JS vai preencher isso sozinho -->
           </select>
         </div>
@@ -1459,10 +1459,13 @@ function destacarTermos(texto, tokens){
           ${renderDiferenciadoresBox(r.entry)}
         </div>
         <div class="result-actions">
+          <!-- OS DOIS NOVOS BOTÕES DE COPIAR NA BUSCA -->
+          <button onclick="copiarSoTexto('${r.entry.id}')" title="Copiar só a Solução" style="font-size: 16px; padding: 4px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); cursor: pointer;">📝</button>
+          <button onclick="copiarFichaCompleta('${r.entry.id}')" title="Copiar Ficha para Amigo" style="font-size: 16px; padding: 4px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); cursor: pointer;">📋</button>
           <button class="btn-ver" data-action="ver" data-id="${r.entry.id}">Ver completo</button>
           <button class="btn-confirmar" data-action="confirmar" data-id="${r.entry.id}">✅ Confirmar</button>
           <button class="btn-descartar" data-action="descartar" data-id="${r.entry.id}">✕ Descartar</button>
-        </div>
+          </div>
       </div>`;
     }).join('');
 
@@ -1884,7 +1887,7 @@ function parseQuickText(text, categoriaPadrao){
           </div>
           
         </div>
-        <div class="manage-item-actions" style="display: flex; flex-direction: row; justify-content: flex-start; gap: 8px; margin-left: 0px;">
+        <div class="manage-item-actions" style="display: flex; flex-direction: row; border-radius: 8px; justify-content: flex-start; gap: 8px; margin-left: 0px;">
           <button data-action="ver" data-id="${e.id}" title="Ver">👁️</button>
           <!-- OS DOIS BOTÕES DE COPIAR -->
           <button onclick="copiarSoTexto('${e.id}')" title="Copiar só a Solução">📝</button>
