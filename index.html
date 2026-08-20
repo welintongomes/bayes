@@ -167,7 +167,7 @@
     .btn-confirmar { color: var(--success); }
     .btn-confirmar:hover { border-color: var(--success); }
 
-    .dif-box { margin-top:10px; scrollbar-color: rgb(18 21 27) rgba(255, 255, 255, .05); scrollbar-width: thin; display:flex; flex-direction:column; gap:6px; overflow-y: auto; max-height: 90px; }
+    .dif-box { margin-top:10px; scrollbar-color: rgb(18 21 27) rgba(255, 255, 255, .05); scrollbar-width: thin; display:flex; flex-direction:column; gap:6px; overflow-y: auto; max-height: 13vh; }
     .dif-item { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; background:var(--bg-alt); border:1px solid var(--border); border-radius:8px; padding:8px 10px; }
     .dif-pergunta { font-size:12px; color:var(--text-dim); flex:1 1 150px; }
     .dif-botoes { display:flex; gap:4px; flex:0 0 auto; }
@@ -449,6 +449,7 @@ nav.tabs:has(.tab-btn[data-tab="buscar"].active) #perguntasBox {
     }
     /* Chave Seletora de Voz */
     .btn-voz {
+      margin-left: 2px;
       background: var(--bg-alt);
       border: 1px solid var(--border);
       color: var(--text-faint);
@@ -476,6 +477,11 @@ nav.tabs:has(.tab-btn[data-tab="buscar"].active) #perguntasBox {
       scrollbar-color: rgb(13 15 19) rgba(255, 255, 255, .05);
       overflow-y: auto;
       max-height: 35vh;
+      }
+      /* css para botoes de copiar só o texto, e copiar tudo */
+      .btn-copiar-ficha:hover {
+          border-color: #2980B9 !important;
+          background: rgba(41, 128, 185, 0.12) !important;
       }
 </style>
 </head>
@@ -765,7 +771,7 @@ Verificar parafuso de ar, vazamento de vácuo, vela suja..."></textarea>
     if (!btn) return;
 
     const atualizarVisual = () => {
-      btn.innerHTML = leituraAutomatica ? '🔊 Leitura Auto' : '🔇 Leitura OFF';
+      btn.innerHTML = leituraAutomatica ? '🔊 ON' : '🔇 OFF';
       btn.style.color = leituraAutomatica ? 'var(--success)' : 'var(--text-faint)';
       btn.style.borderColor = leituraAutomatica ? 'var(--success)' : 'var(--border)';
     };
@@ -1460,8 +1466,9 @@ function destacarTermos(texto, tokens){
         </div>
         <div class="result-actions">
           <!-- OS DOIS NOVOS BOTÕES DE COPIAR NA BUSCA -->
-          <button onclick="copiarSoTexto('${r.entry.id}')" title="Copiar só a Solução" style="font-size: 16px; padding: 4px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); cursor: pointer;">📝</button>
-          <button onclick="copiarFichaCompleta('${r.entry.id}')" title="Copiar Ficha para Amigo" style="font-size: 16px; padding: 4px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); cursor: pointer;">📋</button>
+          <div class></div>
+          <button onclick="copiarSoTexto('${r.entry.id}')" title="Copiar só a Solução" class="btn-copiar-ficha" style="font-size: 16px; padding: 4px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); cursor: pointer;">📝</button>
+          <button onclick="copiarFichaCompleta('${r.entry.id}')" title="Copiar Ficha Completa" class="btn-copiar-ficha" style="font-size: 16px; padding: 4px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); cursor: pointer;">📋</button>
           <button class="btn-ver" data-action="ver" data-id="${r.entry.id}">Ver completo</button>
           <button class="btn-confirmar" data-action="confirmar" data-id="${r.entry.id}">✅ Confirmar</button>
           <button class="btn-descartar" data-action="descartar" data-id="${r.entry.id}">✕ Descartar</button>
@@ -1890,8 +1897,8 @@ function parseQuickText(text, categoriaPadrao){
         <div class="manage-item-actions" style="display: flex; flex-direction: row; border-radius: 8px; justify-content: flex-start; gap: 8px; margin-left: 0px;">
           <button data-action="ver" data-id="${e.id}" title="Ver">👁️</button>
           <!-- OS DOIS BOTÕES DE COPIAR -->
-          <button onclick="copiarSoTexto('${e.id}')" title="Copiar só a Solução">📝</button>
-          <button onclick="copiarFichaCompleta('${e.id}')" title="Copiar Ficha Completa para Amigo">📋</button>
+          <button onclick="copiarSoTexto('${e.id}')" title="Copiar só a Solução" class="btn-copiar-ficha">📝</button>
+          <button onclick="copiarFichaCompleta('${e.id}')" title="Copiar Ficha Completa"class="btn-copiar-ficha">📋</button>
           <button data-action="editar" data-id="${e.id}" title="Editar">✏️</button>
           <button data-action="excluir" data-id="${e.id}" title="Excluir">🗑️</button>
         </div>
