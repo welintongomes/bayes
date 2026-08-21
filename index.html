@@ -1780,55 +1780,127 @@ function renderPerguntasDiferenciadoras(ativos, tokensQuery){
   }
 
   /* ---------------- Adicionar rápido ---------------- */
+  /* ---------------- Gerador de Título Alienígena (BM25 Extract) ---------------- */
+  function gerarTituloAlien(texto, tags) {
+      if (!texto) return "Problema Desconhecido";
+
+      // Limpa fofocas, pontuações pesadas e textos inúteis
+      let textoLimpo = texto.replace(/^(hoje|cliente|chegou|veio|o cara|a mulher).{0,30}/i, '')
+                            .replace(/[^\w\sÀ-ÿ]/g, ' ')
+                            .replace(/\s+/g, ' ')
+                            .trim();
+
+      // Pega as primeiras palavras (geralmente o sintoma fica no começo)
+      let primeirasPalavras = textoLimpo.split(' ').slice(0, 10).join(' ');
+
+      // Se a IA conseguiu gerar Tags Inteligentes, nós usamos elas! (Elas são o ouro do texto)
+      if (tags && tags.length > 0) {
+          // Pega as 2 melhores tags e mistura com o começo do texto
+          const melhoresTags = tags.slice(0, 2).map(t => t.toUpperCase()).join(' / ');
+          return `Sintoma: ${melhoresTags} - ${primeirasPalavras.slice(0, 40)}...`;
+      }
+
+      // Se não tem tags, cria um título "Resumo" chique
+      if (primeirasPalavras.length > 5) {
+          // Deixa a primeira letra maiúscula
+          let titulo = primeirasPalavras.charAt(0).toUpperCase() + primeirasPalavras.slice(1);
+          return titulo.length > 50 ? titulo.slice(0, 50).trim() + '...' : titulo;
+      }
+
+      return "Nota Adicionada sem Título";
+  }
+/* ---------------- Adicionar rápido ---------------- */
   function tituloAutomatico(bloco){
     const flat = bloco.replace(/\s+/g,' ').trim();
     return flat.length>60 ? flat.slice(0,60).trim()+'…' : (flat || 'Caso sem título');
   }
 
-function parseQuickText(text, categoriaPadrao){
+  function parseQuickText(text, categoriaPadrao){
     const blocks = text.split(/^[ \t]*-{3,}[ \t]*$/m).map(b=>b.trim()).filter(Boolean);
     return blocks.map(block=>{
       const lines = block.split('\n').map(l=>l.trim());
-      let tituloBruto = (lines[0]||'').replace(/^#+\s*/,'').trim();
+      
+      let tituloBruto = '';
       let categoria = categoriaPadrao || '';
       let tags = [];
-      let idx = 1;
+      let idx = 0;
+      let hasExplicitTitle = false;
+      let isPastedBlock = true; // Assume que é um "textão" colado até provar o contrário
       
+      // 1. Verifica a Primeira Linha
+      // Se não for um comando de 'categoria:' ou 'tags:', assumimos que pode ser um título
+      if (!/^categoria\s*:/i.test(lines[0]) && !/^tags?\s*:/i.test(lines[0])) {
+         tituloBruto = lines[0].replace(/^#+\s*/,'').trim();
+         
+         // Se você usou Markdown (ex: # Meu Título), é um título manual inegociável!
+         if (lines[0].startsWith('#')) hasExplicitTitle = true;
+         idx = 1;
+      }
+
+      // 2. Procura os seus Marcadores e Pulos de Linha
       while(idx < lines.length){
-        if(/^categoria\s*:/i.test(lines[idx])){ categoria = lines[idx].replace(/^categoria\s*:/i,'').trim(); idx++; continue; }
-        if(/^tags?\s*:/i.test(lines[idx])){ tags = lines[idx].replace(/^tags?\s*:/i,'').split(',').map(t=>t.trim()).filter(Boolean); idx++; continue; }
-        if(lines[idx]===''){ idx++; continue; }
+        if(/^categoria\s*:/i.test(lines[idx])){ 
+           categoria = lines[idx].replace(/^categoria\s*:/i,'').trim(); 
+           isPastedBlock = false; 
+           idx++; 
+           continue; 
+        }
+        if(/^tags?\s*:/i.test(lines[idx])){ 
+           tags = lines[idx].replace(/^tags?\s*:/i,'').split(',').map(t=>t.trim()).filter(Boolean); 
+           isPastedBlock = false; 
+           idx++; 
+           continue; 
+        }
+        // O SEGREDO DO CONTROLE MANUAL: Saltou linha = A primeira linha era o título!
+        if(lines[idx] === ''){ 
+           isPastedBlock = false; 
+           if(tituloBruto) hasExplicitTitle = true; 
+           idx++; 
+           continue; 
+        }
         break;
       }
       
       let causas = lines.slice(idx).join('\n').trim();
-      if(!causas){ causas = tituloBruto; }
       
-      // 1. A IA Adivinha a Categoria
-      if (!categoria) categoria = adivinharCategoria(causas);
+      // 3. Decisão de Escopo (Texto vs Título)
+      // Se foi só um CTRL+V de textão sem saltar linha, o texto todo vira 'Causas' para a IA trabalhar
+      if (isPastedBlock && !hasExplicitTitle) {
+         causas = lines.join('\n').trim();
+         tituloBruto = ''; // Apaga o título para forçar a IA a trabalhar
+      } else if (!causas) {
+         causas = tituloBruto; // Fallback se ficou sem corpo
+      }
       
-      // 2. A IA Extrai o Vocabulário Controlado (Tags)
-      if (tags.length === 0) {
+      // 4. A IA Adivinha a Categoria (se você não colocou "categoria:")
+      if (!categoria && typeof adivinharCategoria === 'function') {
+          categoria = adivinharCategoria(causas);
+      }
+      
+      // 5. A IA Extrai Tags (se você não colocou "tags:")
+      if (tags.length === 0 && typeof extrairTagsInteligentes === 'function') {
          const tagsInteligentes = extrairTagsInteligentes(causas);
          if (tagsInteligentes) tags = tagsInteligentes.split(',').map(t => t.trim()).filter(Boolean);
       }
 
-      // 3. O CONSTRUTOR DE TÍTULO VIP
+      // 6. O CONSTRUTOR DE TÍTULO FINAL
       let tituloFinal = tituloBruto;
       
-      // Se a primeira linha for muito grande (textão) OU começar com "conversa fiada", a IA toma o controle do Título!
-      const comecaComFofoca = /^(hoje|cliente|chegou|veio)/i.test(tituloBruto);
-      if (tituloBruto.length > 50 || comecaComFofoca) {
-         tituloFinal = gerarTituloInteligente(causas, categoria, tags);
+      // Se você NÃO forçou um título (saltando linha ou usando '#'), a IA assume o volante
+      if (!hasExplicitTitle || !tituloBruto) {
+         if (typeof gerarTituloAlien === 'function') {
+             tituloFinal = gerarTituloAlien(causas, tags);
+         } else {
+             tituloFinal = causas.length > 50 ? causas.slice(0, 50) + '...' : causas;
+         }
       } else {
-         // Mantém o título manual que você digitou (se for curtinho e direto)
-         tituloFinal = tituloBruto.length > 90 ? tituloBruto.slice(0, 90).trim() + '…' : (tituloBruto || gerarTituloInteligente(causas, categoria, tags));
+         // RESPEITA O SEU TÍTULO MANUAL!
+         tituloFinal = tituloBruto.length > 90 ? tituloBruto.slice(0, 90).trim() + '…' : tituloBruto;
       }
 
       return { titulo: tituloFinal, categoria, tags, causas };
     }).filter(b=> b.causas);
   }
-  
   document.getElementById('toggleAvancado').addEventListener('click', ()=>{
     const box = document.getElementById('avancadoBox');
     box.style.display = box.style.display==='none' ? 'block' : 'none';
@@ -1863,7 +1935,6 @@ function parseQuickText(text, categoriaPadrao){
     showToast(parsed.length+' caso(s) salvo(s) no banco.', 'ok');
   });
 
-  /* ---------------- Gerenciar ---------------- */
 /* ---------------- Gerenciar ---------------- */
   function renderGerenciar(){
     const termo = normalize(document.getElementById('manageSearch').value);
